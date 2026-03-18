@@ -383,7 +383,7 @@ export default function ImageToPdfPage() {
       setProgress(98);
 
       // Download — FIX-2 pattern: appendChild → click → removeChild → revokeObjectURL
-      const blob = new Blob([pdfBytes as BlobPart], { type: "application/pdf" });
+     const blob     = new Blob([pdfBytes as unknown as BlobPart], { type: "application/pdf" });
       const url      = URL.createObjectURL(blob);
       const a        = document.createElement("a");
       a.href         = url;
