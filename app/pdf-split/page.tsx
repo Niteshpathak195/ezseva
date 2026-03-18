@@ -265,7 +265,7 @@ export default function PdfSplitPage() {
 
   /* ── Download single — FIX-2 pattern ── */
   const downloadOne = (out: SplitOutput) => {
-    const blob = new Blob([out.bytes], { type: "application/pdf" });
+    const blob = new Blob([out.bytes as unknown as BlobPart], { type: "application/pdf" });
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement("a");
     a.href     = url;

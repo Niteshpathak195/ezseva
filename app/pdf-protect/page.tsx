@@ -278,7 +278,7 @@ export default function PdfProtectPage() {
   /* ── Download — FIX 4: appendChild + removeChild (Chrome PDF MIME fix) ── */
   const handleDownload = useCallback(() => {
     if (!result) return;
-    const blob = new Blob([result.outputBytes], { type: "application/pdf" });
+    const blob = new Blob([result.outputBytes as unknown as BlobPart], { type: "application/pdf" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;

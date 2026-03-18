@@ -361,7 +361,7 @@ export default function PDFCompressPage() {
       const compressedBytes = await compressPDF(arrayBuffer, level, onProgress);
 
       if (downloadURLRef.current) URL.revokeObjectURL(downloadURLRef.current);
-      const blob = new Blob([compressedBytes], { type: "application/pdf" });
+      const blob = new Blob([compressedBytes as unknown as BlobPart], { type: "application/pdf" });
       const url  = URL.createObjectURL(blob);
       downloadURLRef.current = url;
       setDownloadURL(url);

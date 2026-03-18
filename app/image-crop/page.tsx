@@ -315,7 +315,7 @@ export default function ImageCropPage() {
       const bstr  = atob(arr[1]);
       const u8arr = new Uint8Array(bstr.length);
       for (let i = 0; i < bstr.length; i++) u8arr[i] = bstr.charCodeAt(i);
-      const blob = new Blob([u8arr], { type: mime });
+      const blob = new Blob([u8arr as unknown as BlobPart], { type: mime });
 
       const url = URL.createObjectURL(blob);
       const a   = document.createElement("a");
