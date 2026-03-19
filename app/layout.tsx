@@ -2,11 +2,12 @@
 // EzSeva — Root Layout
 // app/layout.tsx
 // ─────────────────────────────────────────────
-// Version : 1.2.0
+// Version : 1.3.0
 // Updated : March 2026
 //
 // CHANGES:
 //   ✅ Google Analytics G-1B50343XM7 added
+//   ✅ Google Search Console verification added
 //   ✅ AdSense placeholder — add ca-pub-XXXXX when approved
 // ─────────────────────────────────────────────
 
@@ -41,6 +42,12 @@ export const metadata: Metadata = {
     follow: true,
     googleBot: { index: true, follow: true },
   },
+
+  /* ── Google Search Console Verification ── */
+  verification: {
+    google: "nDYzTTfDtywNXhPoATZXES2G5J7E1lKan1xsvibXBZg",
+  },
+
   openGraph: {
     type: "website",
     locale: "en_IN",
