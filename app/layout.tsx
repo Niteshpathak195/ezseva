@@ -2,13 +2,14 @@
 // EzSeva — Root Layout
 // app/layout.tsx
 // ─────────────────────────────────────────────
-// Version : 1.3.0
+// Version : 1.4.0
 // Updated : March 2026
 //
 // CHANGES:
 //   ✅ Google Analytics G-1B50343XM7 added
 //   ✅ Google Search Console verification added
-//   ✅ AdSense placeholder — add ca-pub-XXXXX when approved
+//   ✅ AdSense ca-pub-2223723556949185 added
+//      (for site ownership verification + review)
 // ─────────────────────────────────────────────
 
 import type { Metadata, Viewport } from "next";
@@ -112,13 +113,12 @@ export default function RootLayout({
           }}
         />
 
-        {/* ── Google AdSense — uncomment when Publisher ID approved ──
+        {/* ── Google AdSense ── */}
         <script
           async
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXXXX"
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2223723556949185"
           crossOrigin="anonymous"
         />
-        */}
       </head>
       <body>
         {children}
