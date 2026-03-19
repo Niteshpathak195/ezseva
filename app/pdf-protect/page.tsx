@@ -85,7 +85,7 @@ interface PermissionsOpts {
 }
 
 interface ProtectResult {
-  outputBytes:  Uint8Array;
+  outputBytes:  Uint8Array<ArrayBuffer>;
   filename:     string;
   originalSize: number;
   outputSize:   number;
@@ -123,7 +123,7 @@ async function encryptPDFWithPermissions(
   userPassword:  string,   // raw — NOT trimmed (FIX-C)
   ownerPassword: string | null, // raw — NOT trimmed (FIX-C)
   permsOpts:     PermissionsOpts
-): Promise<Uint8Array> {
+): Promise<Uint8Array<ArrayBuffer>> {
   const permissions = buildPermissions(permsOpts);
 
   // PDF password padding string (spec Section 7.6.3.3)
@@ -580,7 +580,7 @@ export default function PdfProtectPage() {
   /* ── Download ── */
   const handleDownload = useCallback(() => {
     if (!result) return;
-    const blob = new Blob([result.outputBytes], { type: "application/pdf" });
+    const blob = new Blob([result.outputBytes.buffer.slice(0)], { type: "application/pdf" });
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement("a");
     a.href = url; a.download = result.filename; a.style.display = "none";
