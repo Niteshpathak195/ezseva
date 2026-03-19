@@ -85,7 +85,7 @@ interface PermissionsOpts {
 }
 
 interface ProtectResult {
-  outputBytes:  Uint8Array<ArrayBuffer>;
+  outputBytes:  Uint8Array;
   filename:     string;
   originalSize: number;
   outputSize:   number;
@@ -123,7 +123,7 @@ async function encryptPDFWithPermissions(
   userPassword:  string,   // raw — NOT trimmed (FIX-C)
   ownerPassword: string | null, // raw — NOT trimmed (FIX-C)
   permsOpts:     PermissionsOpts
-): Promise<Uint8Array<ArrayBuffer>> {
+): Promise<Uint8Array> {
   const permissions = buildPermissions(permsOpts);
 
   // PDF password padding string (spec Section 7.6.3.3)
