@@ -580,7 +580,7 @@ export default function PdfProtectPage() {
   /* ── Download ── */
   const handleDownload = useCallback(() => {
     if (!result) return;
-    const blob = new Blob([result.outputBytes.buffer.slice(0)], { type: "application/pdf" });
+    const blob = new Blob([result.outputBytes.buffer as ArrayBuffer], { type: "application/pdf" });
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement("a");
     a.href = url; a.download = result.filename; a.style.display = "none";
