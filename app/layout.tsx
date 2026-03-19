@@ -2,19 +2,12 @@
 // EzSeva — Root Layout
 // app/layout.tsx
 // ─────────────────────────────────────────────
-// Version : 1.1.0 (Audit Fix)
+// Version : 1.2.0
 // Updated : March 2026
 //
-// FIXES:
-//   ✅ FIX 1 — Geist font REMOVED → Plus Jakarta Sans via globals.css @import
-//              (EzSeva design token: --font: 'Plus Jakarta Sans', sans-serif)
-//   ✅ FIX 2 — title: "EzSeva — Free PDF & Image Tools Online"
-//   ✅ FIX 3 — description: proper SEO description for Indian users
-//   ✅ FIX 4 — lang="en-IN" (India-first SEO signal)
-//   ✅ FIX 5 — AdSense auto-ads script added in <head>
-//              (no data-ad-slot — Auto Ads mode)
-//   ✅ FIX 6 — viewport, themeColor, OpenGraph metadata added
-//   ✅ FIX 7 — No className on body — font handled by CSS variable
+// CHANGES:
+//   ✅ Google Analytics G-1B50343XM7 added
+//   ✅ AdSense placeholder — add ca-pub-XXXXX when approved
 // ─────────────────────────────────────────────
 
 import type { Metadata, Viewport } from "next";
@@ -80,7 +73,7 @@ export const metadata: Metadata = {
   },
 };
 
-/* ── Viewport (separate export per Next.js 14 spec) ── */
+/* ── Viewport ── */
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
@@ -94,28 +87,32 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    // FIX 4: lang="en-IN" — India-first SEO signal
     <html lang="en-IN">
       <head>
-        {/*
-          FIX 5: Google AdSense Auto Ads script
-          - crossOrigin="anonymous" for security
-          - async — never blocks rendering
-          - No data-ad-slot — Auto Ads mode handles placement
-          - Replace "ca-pub-XXXXXXXXXXXXXXXXX" with your actual Publisher ID
-        */}
+        {/* ── Google Analytics ── */}
+        <script
+          async
+          src="https://www.googletagmanager.com/gtag/js?id=G-1B50343XM7"
+        />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              gtag('js', new Date());
+              gtag('config', 'G-1B50343XM7');
+            `,
+          }}
+        />
+
+        {/* ── Google AdSense — uncomment when Publisher ID approved ──
         <script
           async
           src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXXXX"
           crossOrigin="anonymous"
         />
+        */}
       </head>
-      {/*
-        FIX 1: No font className on body
-        Plus Jakarta Sans loaded via @import in globals.css
-        Applied globally via: body { font-family: var(--font); }
-        No Geist font — that was Next.js boilerplate, not EzSeva design
-      */}
       <body>
         {children}
       </body>
