@@ -276,7 +276,7 @@ async function encryptPDFWithPermissions(
         const type = obj.dict.get(PDFName.of("Type"));
         if (type && (type.toString() === "/XRef" || type.toString() === "/Sig")) continue;
       }
-      obj.contents = encryptData(obj.contents, oN, gN, encKey);
+      (obj as unknown as { contents: Uint8Array }).contents = encryptData(obj.contents, oN, gN, encKey);
       if (obj.dict) encryptStrings(obj.dict, oN, gN, encKey);
     } else if (obj instanceof PDFDict) {
       encryptStrings(obj, oN, gN, encKey);
