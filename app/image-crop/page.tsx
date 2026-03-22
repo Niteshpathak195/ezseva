@@ -715,7 +715,7 @@ export default function ImageCropPage() {
                 { icon: "✂️", title: "PDF Split",       href: "/pdf-split",    desc: "Extract PDF pages" },
                 { icon: "📦", title: "PDF Compress",    href: "/pdf-compress", desc: "Reduce PDF size" },
                 { icon: "🔒", title: "PDF Protect",     href: "/pdf-protect",  desc: "Password protect PDF" },
-                { icon: "🔓", title: "PDF Unlock",      href: "/pdf-unlock",   desc: "Remove PDF password" },
+                { icon: "⌨️", title: "Typing Test", href: "/typing-test", desc: "Practice for CPCT, SSC" },
               ].map((t) => (
                 <a key={t.href} href={t.href} className="tool-card" style={{ padding: "14px" }}>
                   <div className="tool-card-icon" style={{ marginBottom: "7px" }}>{t.icon}</div>
