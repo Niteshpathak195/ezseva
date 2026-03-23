@@ -2,14 +2,15 @@
 // EzSeva — Root Layout
 // app/layout.tsx
 // ─────────────────────────────────────────────
-// Version : 1.4.0
+// Version : 1.5.0
 // Updated : March 2026
 //
-// CHANGES:
-//   ✅ Google Analytics G-1B50343XM7 added
-//   ✅ Google Search Console verification added
-//   ✅ AdSense ca-pub-2223723556949185 added
-//      (for site ownership verification + review)
+// CHANGES v1.5.0:
+//   ✅ metadataBase added — fixes OG image absolute URLs
+//   ✅ www.ezseva.in — consistent with sitemap.ts
+//   ✅ openGraph url + canonical → www.ezseva.in
+//   ✅ OG image URL → www.ezseva.in
+//   ✅ Twitter image → www.ezseva.in
 // ─────────────────────────────────────────────
 
 import type { Metadata, Viewport } from "next";
@@ -17,6 +18,11 @@ import "./globals.css";
 
 /* ── SEO Metadata ── */
 export const metadata: Metadata = {
+
+  /* ── CRITICAL: metadataBase — tool layouts ke relative URLs
+     automatically absolute ban jaate hain ── */
+  metadataBase: new URL("https://www.ezseva.in"),
+
   title: {
     default: "EzSeva — Free PDF & Image Tools Online | Built for Billions",
     template: "%s | EzSeva",
@@ -52,14 +58,14 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "en_IN",
-    url: "https://ezseva.in",
+    url: "https://www.ezseva.in",          // ← www
     siteName: "EzSeva",
     title: "EzSeva — Free PDF & Image Tools | Built for Billions",
     description:
       "Free browser-based tools for Indian govt exam candidates. Resize photos, compress PDFs, merge documents. 100% private — files never leave your device.",
     images: [
       {
-        url: "https://ezseva.in/og-image.png",
+        url: "https://www.ezseva.in/og-image.png",  // ← www
         width: 1200,
         height: 630,
         alt: "EzSeva — Built for Billions",
@@ -70,10 +76,10 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "EzSeva — Free PDF & Image Tools",
     description: "Free browser-based tools for India. 100% private. No signup.",
-    images: ["https://ezseva.in/og-image.png"],
+    images: ["https://www.ezseva.in/og-image.png"],  // ← www
   },
   alternates: {
-    canonical: "https://ezseva.in",
+    canonical: "https://www.ezseva.in",    // ← www — sitemap se match
   },
   icons: {
     icon: "/favicon.ico",

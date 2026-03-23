@@ -739,13 +739,3 @@ export default function ImageCropPage() {
     </>
   );
 }
-
-/*
-export const metadata = {
-  title: "Image Crop Online Free — Crop Photo for SSC, Passport | EzSeva",
-  description: "Crop images online free for SSC, Railway, UPSC, Passport & custom sizes. Set exact pixel dimensions. 100% private — files never leave your device.",
-  keywords: ["image crop online free","crop photo for ssc","passport photo crop","image crop india","photo cropper no upload"],
-  openGraph: { title: "Free Image Crop — Crop Photo Online | EzSeva", description: "Crop photos instantly. 100% private.", url: "https://ezseva.in/image-crop", siteName: "EzSeva" },
-  alternates: { canonical: "https://ezseva.in/image-crop" },
-};
-*/
