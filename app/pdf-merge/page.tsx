@@ -722,10 +722,10 @@ export default function PdfMergePage() {
                 { icon: "📦", title: "PDF Compress",      href: "/pdf-compress",  desc: "Reduce PDF size" },
                 { icon: "✂️", title: "PDF Split",         href: "/pdf-split",     desc: "Split PDF pages" },
                 { icon: "🔒", title: "PDF Protect",       href: "/pdf-protect",   desc: "Password protect PDF" },
-                { icon: "🔓", title: "PDF Unlock",        href: "/pdf-unlock",    desc: "Remove PDF password" },
+                { icon:"🎨",title:"Image Crop",      href:"/image-crop",   desc:"Crop photo to any size" },
                 { icon: "🖼️", title: "Image Resize",     href: "/image-resize",  desc: "Resize for govt exams" },
                 { icon: "🪪", title: "Photo + Signature", href: "/photo-joiner",  desc: "Merge for govt forms" },
-                { icon: "🔄", title: "PDF to Images",     href: "/pdf-to-images", desc: "Export pages as images" },
+                { icon:"⌨️",title:"Typing Test",     href:"/typing-test",  desc:"CPCT, SSC practice"    },
               ].map((t) => (
                 <a key={t.href} href={t.href} className="tool-card" style={{ padding: "14px", opacity: 1, animation: "none" }}>
                   <div className="tool-card-icon" style={{ marginBottom: "7px" }}>{t.icon}</div>
