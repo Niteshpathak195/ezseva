@@ -10,16 +10,34 @@ import Logo from "./Logo";
 import { TOOLS, NAV_ITEMS, type Category } from "../data/tools";
 
 /* ── useHoverDelay hook ── */
-function useHoverDelay(delay = 400) {
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const open = useCallback((cb: () => void) => {
-    timerRef.current = setTimeout(cb, delay);
-  }, [delay]);
-  const cancel = useCallback(() => {
-    if (timerRef.current) clearTimeout(timerRef.current);
+function useHoverDelay(openDelay = 120, closeDelay = 220) {
+  const openTimerRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const cancelOpen = useCallback(() => {
+    if (openTimerRef.current) clearTimeout(openTimerRef.current);
   }, []);
-  useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
-  return { open, cancel };
+
+  const cancelClose = useCallback(() => {
+    if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+  }, []);
+
+  const scheduleOpen = useCallback((cb: () => void) => {
+    cancelOpen();
+    openTimerRef.current = setTimeout(cb, openDelay);
+  }, [openDelay, cancelOpen]);
+
+  const scheduleClose = useCallback((cb: () => void) => {
+    cancelClose();
+    closeTimerRef.current = setTimeout(cb, closeDelay);
+  }, [closeDelay, cancelClose]);
+
+  useEffect(() => () => {
+    if (openTimerRef.current)  clearTimeout(openTimerRef.current);
+    if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+  }, []);
+
+  return { scheduleOpen, scheduleClose, cancelOpen, cancelClose };
 }
 
 /* ── MegaDropdown ── */
@@ -33,20 +51,26 @@ function MegaDropdown({
   const tools = TOOLS.filter((t) => t.cat === catConfig.cat);
 
   return (
+    /* Invisible paddingTop bridges the gap so mouse path button → menu stays "inside" */
+    <div
+      style={{
+        position:      "absolute",
+        top:           "100%",
+        left:          "50%",
+        transform:     isOpen
+          ? "translateX(-50%) translateY(0)"
+          : "translateX(-50%) translateY(-6px)",
+        paddingTop:    "10px",
+        opacity:       isOpen ? 1 : 0,
+        pointerEvents: isOpen ? "auto" : "none",
+        transition:    "opacity 0.18s ease, transform 0.18s ease",
+        zIndex:        100,
+      }}
+    >
     <div
       role="menu"
       aria-label={`${catConfig.label} tools`}
       style={{
-        position: "absolute",
-        top: "calc(100% + 12px)",
-        left: "50%",
-        transform: isOpen
-          ? "translateX(-50%) translateY(0)"
-          : "translateX(-50%) translateY(-10px)",
-        opacity: isOpen ? 1 : 0,
-        pointerEvents: isOpen ? "auto" : "none",
-        transition: "opacity 0.2s ease, transform 0.2s ease",
-        zIndex: 100,
         background: "#ffffff",
         border: "1.5px solid var(--border-light)",
         borderRadius: "var(--radius-xl)",
@@ -174,6 +198,7 @@ function MegaDropdown({
         </a>
       </div>
     </div>
+    </div>
   );
 }
 
@@ -184,7 +209,7 @@ export default function Navbar() {
   const [mobileExp, setMobileExp]       = useState<string | null>(null);
   const [scrolled, setScrolled]         = useState(false);
   const navRef = useRef<HTMLElement>(null);
-  const { open: delayOpen, cancel: cancelDelay } = useHoverDelay(380);
+  const { scheduleOpen, scheduleClose, cancelOpen, cancelClose } = useHoverDelay();
 
   useEffect(() => {
     const h = () => setScrolled(window.scrollY > 4);
@@ -203,10 +228,22 @@ export default function Navbar() {
   }, []);
 
   const handleMouseEnter = (label: string) => {
-    cancelDelay(); delayOpen(() => setOpenDrop(label));
+    cancelClose();
+    scheduleOpen(() => setOpenDrop(label));
   };
-  const handleMouseLeave = () => { cancelDelay(); setOpenDrop(null); };
-  const closeAll = () => { setOpenDrop(null); setMobileOpen(false); setMobileExp(null); };
+
+  const handleMouseLeave = () => {
+    cancelOpen();
+    scheduleClose(() => setOpenDrop(null));
+  };
+
+  const toggleDrop = (label: string) => {
+    cancelOpen();
+    cancelClose();
+    setOpenDrop((prev) => (prev === label ? null : label));
+  };
+
+  const closeAll = () => { cancelOpen(); cancelClose(); setOpenDrop(null); setMobileOpen(false); setMobileExp(null); };
 
   return (
     <header ref={navRef} style={{
@@ -236,8 +273,10 @@ export default function Navbar() {
               onMouseEnter={() => handleMouseEnter(item.label)}
               onMouseLeave={handleMouseLeave}>
               <button
+                type="button"
                 aria-haspopup="true"
                 aria-expanded={openDrop === item.label}
+                onClick={() => toggleDrop(item.label)}
                 style={{
                   display: "flex", alignItems: "center", gap: 5,
                   padding: "7px 13px", borderRadius: "var(--radius-md)",
