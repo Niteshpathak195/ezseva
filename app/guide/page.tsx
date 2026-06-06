@@ -28,7 +28,7 @@ import Footer from "../components/Footer";
    TOOL GUIDE DATA
 ═══════════════════════════════════════════════════════════════ */
 
-type ToolCategory = "Image Tools" | "PDF Tools" | "AI Tools" | "Typing Test";
+type ToolCategory = "Image Tools" | "PDF Tools" | "Practice";
 
 interface ToolGuide {
   id: string;
@@ -243,87 +243,13 @@ const TOOL_GUIDES: ToolGuide[] = [
     useCases: ["Protect personal documents before sharing", "Secure Aadhaar card PDF", "Password-protect financial documents", "Secure legal agreements", "Protect confidential certificates"],
   },
 
-  /* ── AI TOOLS ─────────────────────────────────────────────── */
-  {
-    id: "ai-letter",
-    icon: "✍️",
-    title: "AI Letter Writer",
-    href: "/ai-letter",
-    cat: "AI Tools",
-    catColor: "#D97706",
-    tagline: "Generate official letters in seconds — English and Hindi.",
-    formats: "Output: PDF / DOCX",
-    limits: "Coming Soon",
-    comingSoon: true,
-    steps: [
-      { title: "Select Letter Type",    desc: "Choose from job application, leave application, complaint, NOC, income certificate request, and 25+ more templates." },
-      { title: "Fill Basic Details",    desc: "Enter your name, recipient, subject, and 1–2 lines of context. The AI handles the rest." },
-      { title: "Generate with AI",      desc: "Click Generate. The AI writes a complete, officially formatted letter in seconds." },
-      { title: "Edit and Download",     desc: "Edit the generated letter in-browser if needed, then download as PDF or DOCX." },
-    ],
-    tips: [
-      "Joining the waitlist gets you early access when the tool launches.",
-      "The tool will support both English and Hindi (formal) letter formats.",
-      "Output will be formatted to government and corporate standards — ready to print and submit.",
-    ],
-    useCases: ["Job application letter", "Leave application to employer", "Complaint to government office", "NOC request letter", "Income certificate request"],
-  },
-  {
-    id: "ai-resume",
-    icon: "📋",
-    title: "AI Resume Builder",
-    href: "/ai-resume",
-    cat: "AI Tools",
-    catColor: "#D97706",
-    tagline: "Build an ATS-optimised resume for government and private jobs.",
-    formats: "Output: PDF",
-    limits: "Coming Soon",
-    comingSoon: true,
-    steps: [
-      { title: "Enter Basic Details",   desc: "Fill in your name, education, work experience, and skills. Takes under 3 minutes." },
-      { title: "Choose a Template",     desc: "Select from 10+ clean templates — government-style, corporate, or fresher formats." },
-      { title: "AI Enhances Your Content", desc: "AI rewrites your summary, bullet points, and skills section for ATS compatibility and impact." },
-      { title: "Download PDF",          desc: "Download your completed resume instantly — no email, no account required." },
-    ],
-    tips: [
-      "Join the waitlist to be notified the moment this tool launches.",
-      "Special templates for UPSC, SSC, Railway, and Bank job applications will be included.",
-      "ATS optimisation means your resume passes automated screening systems used by top employers.",
-    ],
-    useCases: ["Government job application resume", "Bank PO application", "SSC / Railway application", "Private sector fresher resume", "Career change resume"],
-  },
-  {
-    id: "ai-biodata",
-    icon: "🤖",
-    title: "AI Biodata Maker",
-    href: "/ai-biodata",
-    cat: "AI Tools",
-    catColor: "#D97706",
-    tagline: "Create a beautiful Indian marriage biodata — PDF ready to share.",
-    formats: "Output: PDF",
-    limits: "Coming Soon",
-    comingSoon: true,
-    steps: [
-      { title: "Enter Personal Details", desc: "Fill in personal, family, education and professional information." },
-      { title: "Add Photo",             desc: "Upload your photo directly in the browser — no external editor needed." },
-      { title: "Choose Design",         desc: "Pick from 5 elegant templates — traditional and modern styles for all communities." },
-      { title: "Download PDF",          desc: "Download a print-ready A4 PDF. Share directly on WhatsApp or print at home." },
-    ],
-    tips: [
-      "Join the waitlist to be notified at launch.",
-      "Optional horoscope section will include Rashi, Nakshatra, and Gotra fields.",
-      "All templates are designed for Indian matrimonial standards and accepted by all matrimonial portals.",
-    ],
-    useCases: ["Hindu / Muslim / Christian / Sikh biodata", "Matrimonial site profile", "Family sharing biodata", "Shaadi.com / Jeevansathi profile", "Printable marriage biodata"],
-  },
-
   /* ── TYPING TEST ──────────────────────────────────────────── */
   {
     id: "typing-test",
     icon: "⌨️",
     title: "Typing Speed Test",
     href: "/typing-test",
-    cat: "Typing Test",
+    cat: "Practice",
     catColor: "#059669",
     tagline: "Practice typing for CPCT, SSC, Railway and VYAPAM — Hindi and English.",
     formats: "English / Hindi (Mangal Unicode)",
@@ -348,8 +274,7 @@ const TOOL_GUIDES: ToolGuide[] = [
 const CATEGORIES: { label: ToolCategory; icon: string; color: string; desc: string }[] = [
   { label: "Image Tools",  icon: "🖼️", color: "#0D9488", desc: "Resize, crop, merge and convert images"    },
   { label: "PDF Tools",    icon: "📄", color: "#7C3AED", desc: "Compress, merge, split and protect PDFs"   },
-  { label: "AI Tools",     icon: "🤖", color: "#D97706", desc: "AI-powered letters, resumes and biodata"   },
-  { label: "Typing Test",  icon: "⌨️", color: "#059669", desc: "Practice typing for government exams"      },
+  { label: "Practice",     icon: "⌨️", color: "#059669", desc: "Typing speed test for government exams"      },
 ];
 
 const PLATFORM_FAQ = [

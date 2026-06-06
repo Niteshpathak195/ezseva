@@ -19,16 +19,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${baseUrl}/pdf-split`,         lastModified: new Date(), changeFrequency: "monthly", priority: 0.9 },
     { url: `${baseUrl}/pdf-protect`,       lastModified: new Date(), changeFrequency: "monthly", priority: 0.9 },
 
-    /* ── Typing Test ── */
+    /* ── Practice ── */
     { url: `${baseUrl}/typing-test`,       lastModified: new Date(), changeFrequency: "monthly", priority: 0.8 },
 
     /* ── Guide ── */
     { url: `${baseUrl}/guide`,             lastModified: new Date(), changeFrequency: "monthly", priority: 0.7 },
-
-    /* ── AI Tools ── */
-    { url: `${baseUrl}/ai-letter`,         lastModified: new Date(), changeFrequency: "monthly", priority: 0.6 },
-    { url: `${baseUrl}/ai-resume`,         lastModified: new Date(), changeFrequency: "monthly", priority: 0.6 },
-    { url: `${baseUrl}/ai-biodata`,        lastModified: new Date(), changeFrequency: "monthly", priority: 0.6 },
 
     /* ── Static Pages ── */
     { url: `${baseUrl}/privacy`,           lastModified: new Date(), changeFrequency: "yearly",  priority: 0.3 },

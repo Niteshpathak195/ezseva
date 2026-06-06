@@ -259,6 +259,16 @@ export default function Navbar() {
             </div>
           ))}
 
+          <a href="/typing-test" style={{
+            padding: "7px 13px", borderRadius: "var(--radius-md)",
+            fontSize: 13, fontWeight: 600, color: "var(--text-secondary)",
+            textDecoration: "none", transition: "all 0.15s ease", whiteSpace: "nowrap",
+          }}
+            onMouseEnter={(e) => { const el = e.currentTarget as HTMLElement; el.style.background = "var(--brand-light)"; el.style.color = "var(--brand)"; }}
+            onMouseLeave={(e) => { const el = e.currentTarget as HTMLElement; el.style.background = "transparent"; el.style.color = "var(--text-secondary)"; }}>
+            ⌨️ Typing Test
+          </a>
+
           <a href="/guide" style={{
             padding: "7px 13px", borderRadius: "var(--radius-md)",
             fontSize: 13, fontWeight: 600, color: "var(--text-secondary)",
@@ -357,6 +367,15 @@ export default function Navbar() {
               </div>
             );
           })}
+
+          <a href="/typing-test" onClick={closeAll}
+            style={{
+              display: "block", padding: "11px 12px",
+              borderRadius: "var(--radius-md)", fontSize: 14, fontWeight: 600,
+              color: "var(--text-secondary)", textDecoration: "none", marginTop: 2,
+            }}>
+            ⌨️ Typing Test
+          </a>
 
           <a href="/guide" onClick={closeAll}
             style={{

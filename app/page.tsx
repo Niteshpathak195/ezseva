@@ -132,7 +132,7 @@ export default function HomePage() {
 
             {/* Sub */}
             <p className="ez-sub">
-              Resize images · Compress PDFs · Write with AI<br />
+              Resize images · Compress PDFs · Practice typing<br />
               Free. Instant. Your data never leaves your device.
             </p>
 
@@ -146,7 +146,7 @@ export default function HomePage() {
               <input
                 type="search"
                 className="ez-search-input"
-                placeholder="Search tools — resize, compress, letter…"
+                placeholder="Search tools — resize, compress, typing…"
                 value={search}
                 aria-label="Search tools"
                 // FIX 4: stable ref via useCallback

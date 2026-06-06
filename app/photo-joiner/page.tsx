@@ -730,7 +730,7 @@ export default function PhotoJoiner() {
                 { href: "/pdf-merge",     icon: "🔗", title: "PDF Merge",       desc: "Combine PDFs into one"     },
                 { href: "/pdf-split",     icon: "✂️", title: "PDF Split",       desc: "Extract PDF pages"         },
                 { href: "/pdf-protect",   icon: "🔒", title: "PDF Protect",     desc: "Password protect PDF"      },
-                { href: "/ai-letter",     icon: "🤖", title: "AI Letter Writer",desc: "Write with AI"             },
+                { href: "/typing-test",   icon: "⌨️", title: "Typing Test",       desc: "CPCT, SSC practice"        },
               ].map((t) => (
                 <a key={t.href} href={t.href} className="tool-card" style={{ padding: "14px" }}>
                   <div className="tool-card-icon" style={{ marginBottom: 7 }}>{t.icon}</div>

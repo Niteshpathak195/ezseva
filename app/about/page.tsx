@@ -23,7 +23,7 @@ export default function AboutPage() {
   ];
 
   const stats = [
-    { value: "12+", label: "Free Tools" },
+    { value: "9", label: "Free Tools" },
     { value: "100%", label: "Browser-based" },
     { value: "0", label: "Server uploads" },
     { value: "₹0", label: "Cost to use" },
@@ -32,7 +32,7 @@ export default function AboutPage() {
   const toolCategories = [
     { icon: "🖼️", name: "Image Tools", desc: "Resize, crop, convert — built for govt exam photo requirements" },
     { icon: "📄", name: "PDF Tools", desc: "Compress, merge, split, protect — all in your browser" },
-    { icon: "🤖", name: "AI Tools", desc: "Letter writer, resume builder — coming soon" },
+    { icon: "⌨️", name: "Typing Test", desc: "Hindi & English practice for CPCT, SSC, Railway exams" },
   ];
 
   return (

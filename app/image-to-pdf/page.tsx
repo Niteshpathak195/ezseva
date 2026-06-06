@@ -880,7 +880,7 @@ export default function ImageToPdfPage() {
                 { icon: "🔗", title: "PDF Merge",         href: "/pdf-merge",     desc: "Combine multiple PDFs"   },
                 { icon: "✂️", title: "PDF Split",         href: "/pdf-split",     desc: "Extract PDF pages"       },
                 { icon: "🔒", title: "PDF Protect",       href: "/pdf-protect",   desc: "Password protect PDF"    },
-                { icon: "🤖", title: "AI Letter Writer",  href: "/ai-letter",     desc: "Write with AI"           },
+                { icon: "⌨️", title: "Typing Test",       href: "/typing-test",   desc: "CPCT, SSC practice"           },
               ].map((t) => (
                 <a key={t.href} href={t.href} className="tool-card" style={{ padding: "14px" }}>
                   <div className="tool-card-icon" style={{ marginBottom: "8px" }}>{t.icon}</div>

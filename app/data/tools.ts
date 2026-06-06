@@ -3,7 +3,7 @@
 // app/data/tools.ts
 // ─────────────────────────────────────────────
 
-export type Category = "All" | "Image" | "PDF" | "AI Tools";
+export type Category = "All" | "Image" | "PDF" | "Practice";
 
 export interface Tool {
   icon: string;
@@ -101,43 +101,13 @@ export const TOOLS: Tool[] = [
     uses: "420K",
   },
 
-  /* ── AI Tools ─────────────────────────────────────────── */
-  {
-    icon: "✍️",
-    title: "Letter Writer",
-    desc: "Official Hindi & English letters with AI",
-    href: "/ai-letter",
-    cat: "AI Tools",
-    ai: true,
-    hot: true,
-    uses: "890K",
-  },
-  {
-    icon: "📋",
-    title: "Resume Builder",
-    desc: "Professional resume in seconds with AI",
-    href: "/ai-resume",
-    cat: "AI Tools",
-    ai: true,
-    hot: true,
-    uses: "540K",
-  },
-  {
-    icon: "🤖",
-    title: "AI Biodata",
-    desc: "Marriage biodata generated with AI",
-    href: "/ai-biodata",
-    cat: "AI Tools",
-    ai: true,
-    hot: false,
-    uses: "380K",
-  },
+  /* ── Practice ─────────────────────────────────────────── */
   {
     icon: "⌨️",
     title: "Typing Test",
     desc: "Hindi & English typing speed test",
     href: "/typing-test",
-    cat: "AI Tools",
+    cat: "Practice",
     ai: false,
     hot: false,
     uses: "290K",
@@ -145,13 +115,12 @@ export const TOOLS: Tool[] = [
 ];
 
 export const NAV_ITEMS = [
-  { label: "Image Tools", cat: "Image"    as Category, icon: "🖼️" },
-  { label: "PDF Tools",   cat: "PDF"      as Category, icon: "📄" },
-  { label: "AI Tools",    cat: "AI Tools" as Category, icon: "🤖" },
+  { label: "Image Tools", cat: "Image" as Category, icon: "🖼️" },
+  { label: "PDF Tools",   cat: "PDF"   as Category, icon: "📄" },
 ];
 
 export const STATS = [
-  { value: "20+",  label: "Free Tools"    },
+  { value: "9",    label: "Free Tools"    },
   { value: "100%", label: "Private"       },
   { value: "₹0",   label: "Always Free"   },
   { value: "0",    label: "Signup Needed" },
@@ -164,4 +133,4 @@ export const TRUST = [
   "Works offline",
 ] as const;
 
-export const FILTER_TABS: Category[] = ["All", "Image", "PDF", "AI Tools"];
+export const FILTER_TABS: Category[] = ["All", "Image", "PDF", "Practice"];

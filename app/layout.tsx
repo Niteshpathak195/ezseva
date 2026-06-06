@@ -28,7 +28,7 @@ export const metadata: Metadata = {
     template: "%s | EzSeva",
   },
   description:
-    "Free online tools for India — resize images for SSC/Railway/VYAPAM, compress PDFs, merge documents, add passwords, and write with AI. 100% private. No signup. Works on mobile.",
+    "Free online tools for India — resize images for SSC/Railway/VYAPAM, compress PDFs, merge documents, add passwords, and practice typing. 100% private. No signup. Works on mobile.",
   keywords: [
     "free pdf tools online india",
     "image resize online free",
@@ -95,6 +95,10 @@ export const viewport: Viewport = {
 };
 
 /* ── Root Layout ── */
+const IS_PRODUCTION =
+  process.env.VERCEL_ENV === "production" ||
+  process.env.NEXT_PUBLIC_APP_URL === "https://www.ezseva.in";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -103,28 +107,36 @@ export default function RootLayout({
   return (
     <html lang="en-IN">
       <head>
-        {/* ── Google Analytics ── */}
-        <script
-          async
-          src="https://www.googletagmanager.com/gtag/js?id=G-1B50343XM7"
-        />
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              window.dataLayer = window.dataLayer || [];
-              function gtag(){dataLayer.push(arguments);}
-              gtag('js', new Date());
-              gtag('config', 'G-1B50343XM7');
-            `,
-          }}
-        />
+        {!IS_PRODUCTION && (
+          <meta name="robots" content="noindex, nofollow" />
+        )}
 
-        {/* ── Google AdSense ── */}
-        <script
-          async
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2223723556949185"
-          crossOrigin="anonymous"
-        />
+        {IS_PRODUCTION && (
+          <>
+            {/* ── Google Analytics (production only) ── */}
+            <script
+              async
+              src="https://www.googletagmanager.com/gtag/js?id=G-1B50343XM7"
+            />
+            <script
+              dangerouslySetInnerHTML={{
+                __html: `
+                  window.dataLayer = window.dataLayer || [];
+                  function gtag(){dataLayer.push(arguments);}
+                  gtag('js', new Date());
+                  gtag('config', 'G-1B50343XM7');
+                `,
+              }}
+            />
+
+            {/* ── Google AdSense (production only) ── */}
+            <script
+              async
+              src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2223723556949185"
+              crossOrigin="anonymous"
+            />
+          </>
+        )}
       </head>
       <body>
         {children}
