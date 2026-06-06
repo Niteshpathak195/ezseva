@@ -1,144 +1,113 @@
-// ─────────────────────────────────────────────
-// EzSeva — Logo Component
-// app/components/Logo.tsx
-// ─────────────────────────────────────────────
-// Version : 1.1.0 (Audit Fix)
-// Updated : March 2026
-//
-// FIXES:
-//   ✅ FIX 1 — aria-label added to all SVG variants (A11y)
-//   ✅ FIX 2 — role="img" added to SVGs
-//   ✅ FIX 3 — "nav" size variant added: icon (44px) + inline wordmark
-//              This is what Navbar should use — avoids 140px wordmark crush
-//   ✅ FIX 4 — sizes object kept clean; "sm" still works for other pages
-// ─────────────────────────────────────────────
+// EzSeva — Premium handcrafted logo (v2)
+// Gen-Z gradient mark + Sora wordmark · no AI badge
 
-export default function Logo({ size = "md" }: { size?: "icon" | "nav" | "sm" | "md" | "lg" }) {
+type LogoSize = "icon" | "nav" | "sm" | "md" | "lg";
 
-  /* ── Icon only (48×48) — used in Navbar, favicons, CTAs ── */
-  if (size === "icon") {
-    return (
-      <svg
-        width="48"
-        height="48"
-        viewBox="0 0 68 68"
-        xmlns="http://www.w3.org/2000/svg"
-        role="img"
-        aria-label="EzSeva logo"
+function LogoMark({ size = 40 }: { size?: number }) {
+  const r = size * 0.22;
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 48 48"
+      xmlns="http://www.w3.org/2000/svg"
+      role="img"
+      aria-hidden
+    >
+      <defs>
+        <linearGradient id="ez-mark-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#22D3EE" />
+          <stop offset="45%" stopColor="#00C4B4" />
+          <stop offset="100%" stopColor="#6366F1" />
+        </linearGradient>
+        <filter id="ez-mark-glow" x="-20%" y="-20%" width="140%" height="140%">
+          <feGaussianBlur stdDeviation="1.5" result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+      </defs>
+      <rect x="1" y="1" width="46" height="46" rx={r} fill="url(#ez-mark-grad)" filter="url(#ez-mark-glow)" />
+      {/* Handcrafted 8-spoke sun — simplified chakra */}
+      <g transform="translate(24,24)" stroke="rgba(255,255,255,0.55)" strokeWidth="1.2" strokeLinecap="round">
+        {[0, 45, 90, 135, 180, 225, 270, 315].map((deg) => (
+          <line
+            key={deg}
+            x1={0}
+            y1={-14}
+            x2={0}
+            y2={-8}
+            transform={`rotate(${deg})`}
+          />
+        ))}
+        <circle cx="0" cy="0" r="10" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="1" />
+      </g>
+      {/* ES monogram */}
+      <text
+        x="24"
+        y="27"
+        textAnchor="middle"
+        fontFamily="Sora, system-ui, sans-serif"
+        fontSize="11"
+        fontWeight="800"
+        fill="#fff"
+        letterSpacing="-0.5"
       >
-        <rect x="0" y="0" width="68" height="68" rx="18" fill="#0A2E2B"/>
-        <g transform="translate(34,34)">
-          {/* Primary spokes — 8 */}
-          <line x1="0"    y1="-27"  x2="0"    y2="-14"  stroke="#5DCAA5" strokeWidth="1.8" strokeLinecap="round"/>
-          <line x1="0"    y1="27"   x2="0"    y2="14"   stroke="#5DCAA5" strokeWidth="1.8" strokeLinecap="round"/>
-          <line x1="-27"  y1="0"    x2="-14"  y2="0"    stroke="#5DCAA5" strokeWidth="1.8" strokeLinecap="round"/>
-          <line x1="27"   y1="0"    x2="14"   y2="0"    stroke="#5DCAA5" strokeWidth="1.8" strokeLinecap="round"/>
-          <line x1="-19"  y1="-19"  x2="-10"  y2="-10"  stroke="#5DCAA5" strokeWidth="1.8" strokeLinecap="round"/>
-          <line x1="19"   y1="19"   x2="10"   y2="10"   stroke="#5DCAA5" strokeWidth="1.8" strokeLinecap="round"/>
-          <line x1="19"   y1="-19"  x2="10"   y2="-10"  stroke="#5DCAA5" strokeWidth="1.8" strokeLinecap="round"/>
-          <line x1="-19"  y1="19"   x2="-10"  y2="10"   stroke="#5DCAA5" strokeWidth="1.8" strokeLinecap="round"/>
-          {/* Secondary spokes — 8 */}
-          <line x1="-10.3" y1="-24.9" x2="-5.5" y2="-13.3" stroke="#9FE1CB" strokeWidth="1.1" strokeLinecap="round" opacity="0.7"/>
-          <line x1="10.3"  y1="24.9"  x2="5.5"  y2="13.3"  stroke="#9FE1CB" strokeWidth="1.1" strokeLinecap="round" opacity="0.7"/>
-          <line x1="10.3"  y1="-24.9" x2="5.5"  y2="-13.3" stroke="#9FE1CB" strokeWidth="1.1" strokeLinecap="round" opacity="0.7"/>
-          <line x1="-10.3" y1="24.9"  x2="-5.5" y2="13.3"  stroke="#9FE1CB" strokeWidth="1.1" strokeLinecap="round" opacity="0.7"/>
-          <line x1="-24.9" y1="-10.3" x2="-13.3" y2="-5.5" stroke="#9FE1CB" strokeWidth="1.1" strokeLinecap="round" opacity="0.7"/>
-          <line x1="24.9"  y1="10.3"  x2="13.3"  y2="5.5"  stroke="#9FE1CB" strokeWidth="1.1" strokeLinecap="round" opacity="0.7"/>
-          <line x1="24.9"  y1="-10.3" x2="13.3"  y2="-5.5" stroke="#9FE1CB" strokeWidth="1.1" strokeLinecap="round" opacity="0.7"/>
-          <line x1="-24.9" y1="10.3"  x2="-13.3" y2="5.5"  stroke="#9FE1CB" strokeWidth="1.1" strokeLinecap="round" opacity="0.7"/>
-          {/* Rings */}
-          <circle cx="0" cy="0" r="27" fill="none" stroke="#5DCAA5" strokeWidth="2"/>
-          <circle cx="0" cy="0" r="14" fill="none" stroke="#9FE1CB" strokeWidth="0.9" opacity="0.5"/>
-          <circle cx="0" cy="0" r="11" fill="none" stroke="#FCD34D" strokeWidth="0.9" opacity="0.6"/>
-          {/* Center monogram */}
-          <circle cx="0" cy="0" r="9.5" fill="#0D9488"/>
-          <text x="-5.5" y="4" fontFamily="system-ui,sans-serif" fontSize="9.5" fontWeight="900" fill="white">E</text>
-          <text x="1.5"  y="4" fontFamily="system-ui,sans-serif" fontSize="9.5" fontWeight="200" fill="#FCD34D">S</text>
-        </g>
-        {/* AI badge */}
-        <circle cx="56" cy="8" r="7" fill="#D97706"/>
-        <text x="56" y="12" fontFamily="system-ui,sans-serif" fontSize="7" fontWeight="900" fill="white" textAnchor="middle">AI</text>
-        {/* Dust stars */}
-        <circle cx="10" cy="12" r="1.5" fill="#9FE1CB" opacity="0.6"/>
-        <circle cx="58" cy="52" r="1.2" fill="#FCD34D" opacity="0.6"/>
-        <circle cx="12" cy="56" r="1"   fill="#9FE1CB" opacity="0.5"/>
-      </svg>
+        ES
+      </text>
+    </svg>
+  );
+}
+
+export default function Logo({ size = "md" }: { size?: LogoSize }) {
+  if (size === "nav") {
+    return (
+      <span className="ez-logo-nav" aria-label="EzSeva — Built for Billions">
+        <span className="ez-logo-mark">
+          <LogoMark size={38} />
+        </span>
+        <span className="ez-logo-word hide-xs">
+          <span className="ez-logo-name">
+            <span className="ez-logo-ez">Ez</span>
+            <span className="ez-logo-seva">Seva</span>
+          </span>
+          <span className="ez-logo-tag">Built for Billions</span>
+        </span>
+      </span>
     );
   }
 
-  /* ── Wordmark variants (sm / md / lg) ──────────────────────
-     viewBox 0 0 300 80 — width varies by size prop
-     sm  = 140px wide  (used on tool pages "← All Tools" area)
-     md  = 200px wide  (hero sections)
-     lg  = 280px wide  (large display)
-  ── */
-  const widths = { sm: 140, md: 200, lg: 280 };
-  const w = size === "nav" ? 140 : widths[size as "sm" | "md" | "lg"] ?? 200;
-  const h = Math.round(w * 0.27);
+  if (size === "icon") {
+    return (
+      <span aria-label="EzSeva logo">
+        <LogoMark size={48} />
+      </span>
+    );
+  }
+
+  const widths = { sm: 150, md: 210, lg: 290 };
+  const w = widths[size as "sm" | "md" | "lg"] ?? 210;
+  const markSize = size === "lg" ? 52 : size === "sm" ? 36 : 44;
 
   return (
-    <svg
-      width={w}
-      height={h}
-      viewBox="0 0 300 80"
-      xmlns="http://www.w3.org/2000/svg"
-      role="img"
+    <span
+      className="ez-logo-nav"
+      style={{ gap: 12 }}
       aria-label="EzSeva — Built for Billions"
     >
-      {/* Chakra icon */}
-      <circle cx="36" cy="40" r="33" fill="#0A2E2B"/>
-      <circle cx="36" cy="40" r="30" fill="none" stroke="#1D9E75" strokeWidth="1.2" opacity="0.4"/>
-      <g transform="translate(36,40)">
-        {/* Primary spokes */}
-        <line x1="0"    y1="-28" x2="0"    y2="-14" stroke="#5DCAA5" strokeWidth="1.6" strokeLinecap="round"/>
-        <line x1="0"    y1="28"  x2="0"    y2="14"  stroke="#5DCAA5" strokeWidth="1.6" strokeLinecap="round"/>
-        <line x1="-28"  y1="0"   x2="-14"  y2="0"   stroke="#5DCAA5" strokeWidth="1.6" strokeLinecap="round"/>
-        <line x1="28"   y1="0"   x2="14"   y2="0"   stroke="#5DCAA5" strokeWidth="1.6" strokeLinecap="round"/>
-        <line x1="-19.8" y1="-19.8" x2="-9.9" y2="-9.9" stroke="#5DCAA5" strokeWidth="1.6" strokeLinecap="round"/>
-        <line x1="19.8"  y1="19.8"  x2="9.9"  y2="9.9"  stroke="#5DCAA5" strokeWidth="1.6" strokeLinecap="round"/>
-        <line x1="19.8"  y1="-19.8" x2="9.9"  y2="-9.9" stroke="#5DCAA5" strokeWidth="1.6" strokeLinecap="round"/>
-        <line x1="-19.8" y1="19.8"  x2="-9.9" y2="9.9"  stroke="#5DCAA5" strokeWidth="1.6" strokeLinecap="round"/>
-        {/* Secondary spokes */}
-        <line x1="-10.7" y1="-25.6" x2="-6.1" y2="-13"  stroke="#9FE1CB" strokeWidth="1" strokeLinecap="round" opacity="0.8"/>
-        <line x1="10.7"  y1="25.6"  x2="6.1"  y2="13"   stroke="#9FE1CB" strokeWidth="1" strokeLinecap="round" opacity="0.8"/>
-        <line x1="10.7"  y1="-25.6" x2="6.1"  y2="-13"  stroke="#9FE1CB" strokeWidth="1" strokeLinecap="round" opacity="0.8"/>
-        <line x1="-10.7" y1="25.6"  x2="-6.1" y2="13"   stroke="#9FE1CB" strokeWidth="1" strokeLinecap="round" opacity="0.8"/>
-        <line x1="-25.6" y1="-10.7" x2="-13"  y2="-6.1" stroke="#9FE1CB" strokeWidth="1" strokeLinecap="round" opacity="0.8"/>
-        <line x1="25.6"  y1="10.7"  x2="13"   y2="6.1"  stroke="#9FE1CB" strokeWidth="1" strokeLinecap="round" opacity="0.8"/>
-        <line x1="25.6"  y1="-10.7" x2="13"   y2="-6.1" stroke="#9FE1CB" strokeWidth="1" strokeLinecap="round" opacity="0.8"/>
-        <line x1="-25.6" y1="10.7"  x2="-13"  y2="6.1"  stroke="#9FE1CB" strokeWidth="1" strokeLinecap="round" opacity="0.8"/>
-        {/* Tertiary spokes */}
-        <line x1="-5.2"  y1="-27.5" x2="-2.8" y2="-14.8" stroke="#E1F5EE" strokeWidth="0.6" strokeLinecap="round" opacity="0.4"/>
-        <line x1="5.2"   y1="27.5"  x2="2.8"  y2="14.8"  stroke="#E1F5EE" strokeWidth="0.6" strokeLinecap="round" opacity="0.4"/>
-        <line x1="5.2"   y1="-27.5" x2="2.8"  y2="-14.8" stroke="#E1F5EE" strokeWidth="0.6" strokeLinecap="round" opacity="0.4"/>
-        <line x1="-5.2"  y1="27.5"  x2="-2.8" y2="14.8"  stroke="#E1F5EE" strokeWidth="0.6" strokeLinecap="round" opacity="0.4"/>
-        <line x1="-27.5" y1="-5.2"  x2="-14.8" y2="-2.8" stroke="#E1F5EE" strokeWidth="0.6" strokeLinecap="round" opacity="0.4"/>
-        <line x1="27.5"  y1="5.2"   x2="14.8"  y2="2.8"  stroke="#E1F5EE" strokeWidth="0.6" strokeLinecap="round" opacity="0.4"/>
-        <line x1="27.5"  y1="-5.2"  x2="14.8"  y2="-2.8" stroke="#E1F5EE" strokeWidth="0.6" strokeLinecap="round" opacity="0.4"/>
-        <line x1="-27.5" y1="5.2"   x2="-14.8" y2="2.8"  stroke="#E1F5EE" strokeWidth="0.6" strokeLinecap="round" opacity="0.4"/>
-        {/* Rings */}
-        <circle cx="0" cy="0" r="28"   fill="none" stroke="#5DCAA5" strokeWidth="1.8"/>
-        <circle cx="0" cy="0" r="16"   fill="none" stroke="#9FE1CB" strokeWidth="0.8" opacity="0.5"/>
-        <circle cx="0" cy="0" r="11.5" fill="none" stroke="#FCD34D" strokeWidth="0.8" opacity="0.6"/>
-        {/* Center */}
-        <circle cx="0" cy="0" r="10" fill="#0D9488"/>
-        <text x="-5.5" y="4" fontFamily="system-ui,sans-serif" fontSize="9" fontWeight="900" fill="white">E</text>
-        <text x="1.2"  y="4" fontFamily="system-ui,sans-serif" fontSize="9" fontWeight="200" fill="#FCD34D">S</text>
-      </g>
-      {/* Dust stars */}
-      <circle cx="10" cy="14" r="1.2" fill="#9FE1CB" opacity="0.7"/>
-      <circle cx="60" cy="18" r="0.9" fill="#FCD34D" opacity="0.6"/>
-      <circle cx="14" cy="62" r="1"   fill="#9FE1CB" opacity="0.5"/>
-      <circle cx="58" cy="56" r="1.2" fill="#FCD34D" opacity="0.7"/>
-      <circle cx="66" cy="38" r="0.7" fill="#9FE1CB" opacity="0.4"/>
-      <circle cx="6"  cy="42" r="0.8" fill="#FCD34D" opacity="0.5"/>
-      {/* Wordmark */}
-      <text x="82" y="36" fontFamily="system-ui,sans-serif" fontSize="30" fontWeight="900" fill="#0A1628" letterSpacing="-1.5">Ez</text>
-      <text x="126" y="36" fontFamily="system-ui,sans-serif" fontSize="30" fontWeight="700" fill="#0D9488" letterSpacing="-1.2">Seva</text>
-      {/* Amber underline */}
-      <rect x="82" y="43" width="116" height="2.5" rx="1.2" fill="#D97706" opacity="0.7"/>
-      {/* Tagline */}
-      <text x="82" y="58" fontFamily="system-ui,sans-serif" fontSize="8.5" fontWeight="700" fill="#9CA3AF" letterSpacing="2">BUILT FOR BILLIONS</text>
-    </svg>
+      <span className="ez-logo-mark">
+        <LogoMark size={markSize} />
+      </span>
+      <span className="ez-logo-word">
+        <span className="ez-logo-name" style={{ fontSize: size === "lg" ? "1.65rem" : size === "sm" ? "1rem" : "1.25rem" }}>
+          <span className="ez-logo-ez">Ez</span>
+          <span className="ez-logo-seva">Seva</span>
+        </span>
+        <span className="ez-logo-tag" style={{ fontSize: size === "lg" ? "0.62rem" : "0.55rem" }}>
+          Built for Billions
+        </span>
+      </span>
+    </span>
   );
 }

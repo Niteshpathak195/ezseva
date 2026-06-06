@@ -246,23 +246,12 @@ export default function Navbar() {
   const closeAll = () => { cancelOpen(); cancelClose(); setOpenDrop(null); setMobileOpen(false); setMobileExp(null); };
 
   return (
-    <header ref={navRef} style={{
-      position: "sticky", top: 0, zIndex: 999,
-      background: "rgba(255,255,255,0.97)",
-      backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)",
-      borderBottom: "1px solid var(--border-light)",
-      boxShadow: scrolled ? "0 2px 24px rgba(13,148,136,.09)" : "none",
-      transition: "box-shadow 0.25s ease",
-      fontFamily: "var(--font)",
-    }}>
+    <header ref={navRef} className={`ez-nav-header${scrolled ? " is-scrolled" : ""}`}>
       {/* ── Desktop Row ── */}
-      <div className="container" style={{
-        height: 62, display: "flex", alignItems: "center",
-        justifyContent: "space-between", gap: 8, padding: "0 20px",
-      }}>
+      <div className="container ez-nav-inner">
         <a href="/" onClick={closeAll} aria-label="EzSeva — Home"
           style={{ textDecoration: "none", flexShrink: 0 }}>
-          <Logo size="sm" />
+          <Logo size="nav" />
         </a>
 
         {/* Center nav */}
