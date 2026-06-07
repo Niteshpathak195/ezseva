@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy — EzSeva | Your Files Never Leave Your Device",
+  title: "Privacy Policy — EzSeva | In-Browser Processing & Cookies",
   description:
-    "EzSeva privacy policy. All file processing is 100% client-side — your files never leave your device. No data collection, no tracking, no signup required.",
+    "EzSeva Privacy Policy (June 2026). Tool processing happens in your browser. We use Google Analytics and AdSense on the live site. No signup required.",
   openGraph: {
     title: "Privacy Policy — EzSeva",
-    description: "100% client-side processing. Your files never leave your device.",
+    description: "In-browser tool processing. Google Analytics & AdSense on live site.",
     url: "https://www.ezseva.in/privacy",
     siteName: "EzSeva",
     locale: "en_IN",

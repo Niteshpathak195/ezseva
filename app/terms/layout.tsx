@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Terms of Service — EzSeva | Free Online Tools India",
   description:
-    "EzSeva terms of service. Free to use, no signup required. All tools are browser-based — no file upload to any server.",
+    "EzSeva Terms of Service. Free image, PDF, and typing tools. Not affiliated with government exam bodies. Verify official requirements before submission.",
   openGraph: {
     title: "Terms of Service — EzSeva",
     description: "Free to use. No signup. Browser-based tools — no server upload.",

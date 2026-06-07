@@ -28,8 +28,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import Navbar from "../components/Navbar";
-import Footer from "../components/Footer";
+import ToolPageShell from "../components/tools/ToolPageShell";
 
 /* ═══════════════════════════════════════════════════════════════
    TYPES
@@ -60,12 +59,13 @@ interface CharState {
 
 interface TestResult {
   wpm: number;
+  grossWpm: number;
   accuracy: number;
   errors: number;
   grade: string;
   passed: boolean;
   duration: number;
-  wpmTimeline: number[]; // WPM per second
+  wpmTimeline: number[];
 }
 
 interface PersonalBest {
@@ -211,6 +211,21 @@ function calcWPM(chars: CharState[], startTime: number | null, elapsed?: number)
   if (mins <= 0) return 0;
   const correctChars = chars.filter((c) => c.typed !== null && c.typed === c.ch).length;
   return Math.max(0, Math.round((correctChars / 5) / mins));
+}
+
+function calcGrossWPM(chars: CharState[], startTime: number | null, elapsed?: number): number {
+  if (!startTime) return 0;
+  const mins = elapsed !== undefined ? elapsed / 60 : (Date.now() - startTime) / 1000 / 60;
+  if (mins <= 0) return 0;
+  const typedChars = chars.filter((c) => c.typed !== null).length;
+  return Math.max(0, Math.round((typedChars / 5) / mins));
+}
+
+/** SSC/CPCT style: net WPM = gross WPM minus error penalty per minute */
+function calcNetWPM(grossWpm: number, errors: number, elapsedSec: number): number {
+  if (elapsedSec <= 0) return 0;
+  const mins = elapsedSec / 60;
+  return Math.max(0, Math.round(grossWpm - errors / mins));
 }
 
 function calcAccuracy(chars: CharState[], pos: number): number {
@@ -855,7 +870,10 @@ export default function TypingTestPage() {
   const finishTest = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
     const elapsed = startTimeRef.current ? (Date.now() - startTimeRef.current) / 1000 : dur * 60;
-    const finalWpm = calcWPM(charsRef.current, startTimeRef.current, elapsed);
+    const grossWpm = calcGrossWPM(charsRef.current, startTimeRef.current, elapsed);
+    const netWpm   = calcNetWPM(grossWpm, errorsRef.current, elapsed);
+    const useNet   = preset.id.startsWith("ssc") || preset.id.startsWith("cpct");
+    const finalWpm = useNet ? netWpm : calcWPM(charsRef.current, startTimeRef.current, elapsed);
     const finalAcc = calcAccuracy(charsRef.current, posRef.current);
     const grade    = getGrade(finalWpm, finalAcc, preset.targetWpm, preset.targetAccuracy);
     const passed   = finalWpm >= preset.targetWpm && finalAcc >= preset.targetAccuracy;
@@ -867,8 +885,12 @@ export default function TypingTestPage() {
     setIsNewPB(newPB && finalWpm > 0);
 
     setResult({
-      wpm: finalWpm, accuracy: finalAcc,
-      errors: errorsRef.current, grade, passed,
+      wpm: finalWpm,
+      grossWpm,
+      accuracy: finalAcc,
+      errors: errorsRef.current,
+      grade,
+      passed,
       duration: dur,
       wpmTimeline: [...wpmTimelineRef.current],
     });
@@ -1088,7 +1110,7 @@ export default function TypingTestPage() {
      RENDER
   ══════════════════════════════════════════ */
   return (
-    <>
+    <ToolPageShell toolHref="/typing-test">
       <style>{`
         @keyframes caretBlink {
           0%,100% { background: var(--brand); }
@@ -1102,45 +1124,9 @@ export default function TypingTestPage() {
         .streak-badge { animation: streakPop 0.3s ease forwards; }
       `}</style>
 
-      <Navbar />
-      <main style={{ background: "var(--bg-subtle)", minHeight: "100vh", paddingBottom: "56px" }}>
-
-        {/* ── Top Ad ── */}
-        <div aria-hidden="true" style={{ background: "var(--bg-subtle)" }}>
-          <ins className="adsbygoogle" style={{ display: "block", minHeight: "90px" }}
-            data-ad-format="auto" data-full-width-responsive="true" />
-        </div>
-
-        <div className="container-sm" style={{ padding: "32px 20px 0" }}>
-
-          {/* ══ PAGE HEADER ══ */}
-          <div style={{ textAlign: "center", marginBottom: "28px" }}>
-            <div style={{ display: "inline-flex", alignItems: "center", gap: "7px", background: "var(--brand-light)", border: "1px solid var(--brand-border)", borderRadius: "var(--radius-sm)", padding: "4px 12px", marginBottom: "14px" }}>
-              <span style={{ fontSize: "9px", fontWeight: 800, color: "var(--brand)", letterSpacing: "1.5px", textTransform: "uppercase" }}>⌨️ Free Typing Test</span>
-            </div>
-            <h1 style={{ fontSize: "clamp(24px, 4vw, 34px)", fontWeight: 900, letterSpacing: "-0.8px", color: "var(--text-primary)", lineHeight: 1.15, marginBottom: "10px" }}>
-              Online Typing Speed Test
-            </h1>
-            <p style={{ fontSize: "14.5px", color: "var(--text-muted)", maxWidth: "460px", margin: "0 auto 16px", lineHeight: 1.65 }}>
-              Practice for CPCT, SSC, Railway &amp; VYAPAM — Hindi &amp; English.{" "}
-              <strong style={{ color: "var(--brand)" }}>Your data never leaves your device.</strong>
-            </p>
-            <div style={{ display: "flex", gap: "8px", justifyContent: "center", flexWrap: "wrap", marginBottom: "18px" }}>
-              {[{ icon:"🔒",text:"100% Private"},{icon:"⚡",text:"Instant"},{icon:"📱",text:"Mobile Ready"},{icon:"₹",text:"Free Forever"}].map((t)=>(
-                <span key={t.text} style={{ fontSize:"11.5px",padding:"4px 11px",background:"var(--brand-light)",color:"var(--brand)",borderRadius:"99px",fontWeight:700,border:"1px solid var(--brand-mid)" }}>
-                  {t.icon} {t.text}
-                </span>
-              ))}
-            </div>
-            <a href="/" style={{ display:"inline-flex",alignItems:"center",gap:"6px",fontSize:"12.5px",fontWeight:700,color:"var(--text-muted)",textDecoration:"none",padding:"7px 16px",borderRadius:"99px",border:"1.5px solid var(--border-light)",background:"#fff",boxShadow:"0 1px 4px rgba(0,0,0,0.06)",transition:"all 0.15s ease" }}
-              onMouseEnter={(e)=>{const el=e.currentTarget as HTMLElement;el.style.borderColor="var(--brand-border)";el.style.color="var(--brand)";el.style.background="var(--brand-light)";}}
-              onMouseLeave={(e)=>{const el=e.currentTarget as HTMLElement;el.style.borderColor="var(--border-light)";el.style.color="var(--text-muted)";el.style.background="#fff";}}
-            >← All Tools</a>
-          </div>
-
           {/* ══ VIEW: SETUP ══ */}
           {view === "setup" && (
-            <div style={{ background:"#fff",border:"1.5px solid var(--border-light)",borderRadius:"var(--radius-xl)",padding:"24px",marginBottom:"14px",boxShadow:"var(--shadow-md)" }}>
+            <div className="ez-tool-workspace" style={{ background:"#fff",border:"1.5px solid var(--border-light)",borderRadius:"var(--radius-xl)",padding:"24px",marginBottom:"14px",boxShadow:"var(--shadow-md)" }}>
 
               {/* Language */}
               <p style={{ fontSize:"11px",fontWeight:800,color:"var(--text-muted)",textTransform:"uppercase",letterSpacing:"1.2px",marginBottom:"10px" }}>Language</p>
@@ -1330,7 +1316,20 @@ export default function TypingTestPage() {
               {/* Metrics */}
               <div style={{ display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:"10px",marginBottom:"16px" }}>
                 {[
-                  { val:`${result.wpm}`,      label:"Net WPM",      color:result.wpm>=preset.targetWpm?"var(--brand)":"#ef4444" },
+                  {
+                    val: `${result.wpm}`,
+                    label:
+                      preset.id.startsWith("ssc") || preset.id.startsWith("cpct")
+                        ? "Net WPM"
+                        : "WPM",
+                    color:
+                      result.wpm >= preset.targetWpm ? "var(--brand)" : "#ef4444",
+                  },
+                  {
+                    val: `${result.grossWpm}`,
+                    label: "Gross WPM",
+                    color: "var(--text-secondary)",
+                  },
                   { val:`${result.accuracy}%`,label:"Accuracy",     color:result.accuracy>=preset.targetAccuracy?"var(--brand)":"#ef4444" },
                   { val:`${result.errors}`,   label:"Total Errors", color:result.errors===0?"var(--brand)":"#ef4444" },
                   { val:result.grade,          label:"Grade",        color:["A+","A"].includes(result.grade)?"var(--brand)":result.grade==="B"?"var(--accent)":"#ef4444" },
@@ -1471,40 +1470,7 @@ export default function TypingTestPage() {
             ))}
           </section>
 
-          {/* ══ RELATED TOOLS ══ */}
-          <section aria-label="More free tools" style={{ marginBottom:"8px" }}>
-            <h2 style={{ fontSize:"15px",fontWeight:800,marginBottom:"12px",color:"var(--text-secondary)" }}>🔗 More Free Tools</h2>
-            <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(145px,1fr))",gap:"10px" }}>
-              {[
-                { icon:"🖼️",title:"Image Resize",    href:"/image-resize",  desc:"SSC, Railway, VYAPAM sizes" },
-                { icon:"🪪",title:"Photo+Signature",  href:"/photo-joiner",  desc:"Merge for govt forms" },
-                { icon:"📄",title:"Image to PDF",     href:"/image-to-pdf",  desc:"Combine images into PDF" },
-                { icon:"🗜️",title:"PDF Compress",    href:"/pdf-compress",  desc:"Shrink PDF size" },
-                { icon:"📑",title:"PDF Merge",        href:"/pdf-merge",     desc:"Combine PDFs into one" },
-                { icon:"✂️",title:"PDF Split",        href:"/pdf-split",     desc:"Extract PDF pages" },
-                { icon:"🔒",title:"PDF Protect",      href:"/pdf-protect",   desc:"Add password to PDF" },
-                { icon:"🎨",title:"Image Crop",       href:"/image-crop",    desc:"Crop to any size" },
-              ].map((t)=>(
-                <a key={t.href} href={t.href} className="tool-card" style={{ padding:"14px" }}>
-                  <div className="tool-card-icon" style={{ marginBottom:"7px" }}>{t.icon}</div>
-                  <div style={{ fontSize:"12px",fontWeight:700,color:"var(--text-primary)",marginBottom:"3px" }}>{t.title}</div>
-                  <div style={{ fontSize:"11px",color:"var(--text-muted)" }}>{t.desc}</div>
-                </a>
-              ))}
-            </div>
-          </section>
-
-        </div>
-
-        {/* ── Bottom Ad ── */}
-        <div aria-hidden="true">
-          <ins className="adsbygoogle" style={{ display:"block",minHeight:"90px" }}
-            data-ad-format="auto" data-full-width-responsive="true" />
-        </div>
-
-        <Footer />
-      </main>
-    </>
+    </ToolPageShell>
   );
 }
 

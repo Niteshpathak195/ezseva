@@ -22,13 +22,20 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import Navbar from "../components/Navbar";
-import Footer from "../components/Footer";
+import ToolPageShell from "../components/tools/ToolPageShell";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
-type Layout   = "left" | "top";
-type PresetKey = "ssc" | "ibps" | "railway" | "vyapam" | "upsc" | "custom";
+import { JOINER_PRESETS, type JoinerPresetKey } from "../data/exam-presets";
+import { drawImageWithFit } from "../lib/image-utils";
+import { isImageFile } from "../lib/file-validation";
+import { normalizeImageFile } from "../lib/heic-utils";
+import ToolWorkflowCTA from "../components/tools/ToolWorkflowCTA";
+import KBStatusBadge from "../components/tools/KBStatusBadge";
+import ImageCaptureUpload from "../components/tools/ImageCaptureUpload";
+
+type Layout = "left" | "top";
+type PresetKey = JoinerPresetKey;
 
 interface Preset {
   label: string;
@@ -38,57 +45,10 @@ interface Preset {
   sigW: number;
   sigH: number;
   maxKB: number;
-  canvasW: number;
-  canvasH: number;
   layout: Layout;
 }
 
-// ── Official Government Form Presets ─────────────────────────────────────
-
-const PRESETS: Record<PresetKey, Preset> = {
-  ssc: {
-    label: "SSC CGL / CHSL / MTS",
-    desc: "Photo 3.5×4.5 cm + Sig 3.5×1.5 cm · Max 50 KB",
-    photoW: 200, photoH: 230,
-    sigW: 200,   sigH: 75,
-    maxKB: 50,   canvasW: 400, canvasH: 230, layout: "left",
-  },
-  ibps: {
-    label: "IBPS PO / Clerk / SO",
-    desc: "Photo 200×230 px + Sig 140×60 px · Max 100 KB",
-    photoW: 200, photoH: 230,
-    sigW: 140,   sigH: 60,
-    maxKB: 100,  canvasW: 400, canvasH: 230, layout: "left",
-  },
-  railway: {
-    label: "Railway RRB NTPC / Group D",
-    desc: "Photo 132×170 px + Sig 140×60 px · Max 40 KB",
-    photoW: 132, photoH: 170,
-    sigW: 140,   sigH: 60,
-    maxKB: 40,   canvasW: 320, canvasH: 170, layout: "left",
-  },
-  vyapam: {
-    label: "MP Vyapam / MP PEB",
-    desc: "Photo 200×230 px + Sig 200×75 px · Max 50 KB",
-    photoW: 200, photoH: 230,
-    sigW: 200,   sigH: 75,
-    maxKB: 50,   canvasW: 420, canvasH: 230, layout: "left",
-  },
-  upsc: {
-    label: "UPSC Civil Services",
-    desc: "Photo 300×350 px + Sig 140×60 px · Max 300 KB",
-    photoW: 300, photoH: 350,
-    sigW: 140,   sigH: 60,
-    maxKB: 300,  canvasW: 480, canvasH: 350, layout: "left",
-  },
-  custom: {
-    label: "Custom",
-    desc: "Set your own canvas size",
-    photoW: 200, photoH: 230,
-    sigW: 140,   sigH: 60,
-    maxKB: 100,  canvasW: 400, canvasH: 230, layout: "left",
-  },
-};
+const PRESETS = JOINER_PRESETS as Record<PresetKey, Preset>;
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -112,19 +72,6 @@ function fileToDataURL(file: File): Promise<string> {
     reader.onerror  = reject;
     reader.readAsDataURL(file);
   });
-}
-
-function drawWithWhiteBg(
-  ctx: CanvasRenderingContext2D,
-  img: HTMLImageElement,
-  x: number, y: number, w: number, h: number,
-  whiteBg: boolean
-) {
-  if (whiteBg) {
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(x, y, w, h);
-  }
-  ctx.drawImage(img, x, y, w, h);
 }
 
 async function compressToJPEG(canvas: HTMLCanvasElement, maxKB: number): Promise<Blob> {
@@ -173,12 +120,12 @@ export default function PhotoJoiner() {
   const [previewURL, setPreviewURL]   = useState<string>("");
   const [outputSize, setOutputSize]   = useState<number>(0);
   const [outputBlob, setOutputBlob]   = useState<Blob | null>(null);
+  const [photoOnlyBlob, setPhotoOnlyBlob] = useState<Blob | null>(null);
+  const [sigOnlyBlob, setSigOnlyBlob] = useState<Blob | null>(null);
   const [processing, setProcessing]   = useState(false);
   const [error, setError]             = useState<string>("");
-  const [success, setSuccess]         = useState(false);
 
-  const photoInputRef = useRef<HTMLInputElement>(null);
-  const sigInputRef   = useRef<HTMLInputElement>(null);
+  const previewURLRef = useRef<string>("");
 
   const eff: Preset = preset === "custom"
     ? {
@@ -186,15 +133,25 @@ export default function PhotoJoiner() {
         photoW: customPhotoW, photoH: customPhotoH,
         sigW: customSigW,     sigH: customSigH,
         maxKB: customMaxKB,
-        canvasW: customPhotoW + customSigW + 20,
-        canvasH: Math.max(customPhotoH, customSigH),
       }
     : PRESETS[preset];
+
+  const downloadBlob = useCallback((blob: Blob, filename: string) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.style.display = "none";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  }, []);
 
   // ── File handlers — FIX: 20MB size check added ──
 
   const handlePhotoFile = useCallback(async (file: File) => {
-    if (!file.type.startsWith("image/")) {
+    if (!isImageFile(file)) {
       setError("Please upload a valid image file for photo.");
       return;
     }
@@ -203,15 +160,20 @@ export default function PhotoJoiner() {
       return;
     }
     setError("");
-    setPhotoFile(file);
-    const url = await fileToDataURL(file);
-    setPhotoURL(url);
-    setPreviewURL("");
-    setOutputBlob(null);
+    try {
+      const normalized = await normalizeImageFile(file);
+      setPhotoFile(normalized);
+      const url = await fileToDataURL(normalized);
+      setPhotoURL(url);
+      setPreviewURL("");
+      setOutputBlob(null);
+    } catch {
+      setError("Could not load photo. HEIC from iPhone is supported — try again.");
+    }
   }, []);
 
   const handleSigFile = useCallback(async (file: File) => {
-    if (!file.type.startsWith("image/")) {
+    if (!isImageFile(file)) {
       setError("Please upload a valid image file for signature.");
       return;
     }
@@ -220,11 +182,16 @@ export default function PhotoJoiner() {
       return;
     }
     setError("");
-    setSigFile(file);
-    const url = await fileToDataURL(file);
-    setSigURL(url);
-    setPreviewURL("");
-    setOutputBlob(null);
+    try {
+      const normalized = await normalizeImageFile(file);
+      setSigFile(normalized);
+      const url = await fileToDataURL(normalized);
+      setSigURL(url);
+      setPreviewURL("");
+      setOutputBlob(null);
+    } catch {
+      setError("Could not load signature image.");
+    }
   }, []);
 
   // ── Drag handlers ──
@@ -254,7 +221,6 @@ export default function PhotoJoiner() {
     }
     setError("");
     setProcessing(true);
-    setSuccess(false);
 
     try {
       const [photoImg, sigImg] = await Promise.all([
@@ -289,21 +255,43 @@ export default function PhotoJoiner() {
 
       if (layout === "left") {
         const sigY = Math.floor((canvasH - sh) / 2);
-        drawWithWhiteBg(ctx, photoImg, 0, 0, pw, ph, false);
-        drawWithWhiteBg(ctx, sigImg, pw + GAP, sigY, sw, sh, true);
+        drawImageWithFit(ctx, photoImg, 0, 0, pw, ph, "cover");
+        drawImageWithFit(ctx, sigImg, pw + GAP, sigY, sw, sh, "cover", "#ffffff");
       } else {
         const sigX = Math.floor((canvasW - sw) / 2);
-        drawWithWhiteBg(ctx, photoImg, 0, 0, pw, ph, false);
-        drawWithWhiteBg(ctx, sigImg, sigX, ph + GAP, sw, sh, true);
+        drawImageWithFit(ctx, photoImg, 0, 0, pw, ph, "cover");
+        drawImageWithFit(ctx, sigImg, sigX, ph + GAP, sw, sh, "cover", "#ffffff");
       }
 
       const blob = await compressToJPEG(canvas, eff.maxKB);
+      if (previewURLRef.current) URL.revokeObjectURL(previewURLRef.current);
       const url  = URL.createObjectURL(blob);
+      previewURLRef.current = url;
+
+      const photoCanvas = document.createElement("canvas");
+      photoCanvas.width = pw;
+      photoCanvas.height = ph;
+      const photoCtx = photoCanvas.getContext("2d")!;
+      photoCtx.fillStyle = "#ffffff";
+      photoCtx.fillRect(0, 0, pw, ph);
+      drawImageWithFit(photoCtx, photoImg, 0, 0, pw, ph, "cover");
+
+      const sigCanvas = document.createElement("canvas");
+      sigCanvas.width = sw;
+      sigCanvas.height = sh;
+      const sigCtx = sigCanvas.getContext("2d")!;
+      drawImageWithFit(sigCtx, sigImg, 0, 0, sw, sh, "cover", "#ffffff");
+
+      const [photoBlob, sigBlob] = await Promise.all([
+        compressToJPEG(photoCanvas, eff.maxKB),
+        compressToJPEG(sigCanvas, Math.max(10, Math.floor(eff.maxKB / 3))),
+      ]);
 
       setOutputBlob(blob);
+      setPhotoOnlyBlob(photoBlob);
+      setSigOnlyBlob(sigBlob);
       setOutputSize(blob.size);
       setPreviewURL(url);
-      setSuccess(true);
     } catch (err: unknown) {
       // FIX: no console.error — user-facing message only
       const msg = err instanceof Error ? err.message : "Something went wrong while generating. Please try again.";
@@ -312,6 +300,12 @@ export default function PhotoJoiner() {
       setProcessing(false);
     }
   }, [photoURL, sigURL, eff, layout]);
+
+  useEffect(() => {
+    return () => {
+      if (previewURLRef.current) URL.revokeObjectURL(previewURLRef.current);
+    };
+  }, []);
 
   // Auto re-generate when both images ready
   useEffect(() => {
@@ -323,82 +317,41 @@ export default function PhotoJoiner() {
 
   const handleDownload = useCallback(() => {
     if (!outputBlob) return;
-    const url = URL.createObjectURL(outputBlob);
-    const a   = document.createElement("a");
-    a.href    = url;
-    a.download = "photo_signature_combined.jpg";
-    a.style.display = "none";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 10000);
-  }, [outputBlob]);
+    downloadBlob(outputBlob, "photo_signature_combined.jpg");
+  }, [outputBlob, downloadBlob]);
+
+  const handleDownloadPhoto = useCallback(() => {
+    if (!photoOnlyBlob) return;
+    downloadBlob(photoOnlyBlob, "photo_only.jpg");
+  }, [photoOnlyBlob, downloadBlob]);
+
+  const handleDownloadSig = useCallback(() => {
+    if (!sigOnlyBlob) return;
+    downloadBlob(sigOnlyBlob, "signature_only.jpg");
+  }, [sigOnlyBlob, downloadBlob]);
 
   // ── Reset ──
 
   const handleReset = useCallback(() => {
     setPhotoFile(null); setPhotoURL("");
     setSigFile(null);   setSigURL("");
+    if (previewURLRef.current) {
+      URL.revokeObjectURL(previewURLRef.current);
+      previewURLRef.current = "";
+    }
     setPreviewURL("");  setOutputBlob(null);
-    setOutputSize(0);   setError(""); setSuccess(false);
-    setPreset("ssc");   setLayout("left");
+    setPhotoOnlyBlob(null); setSigOnlyBlob(null);
+    setOutputSize(0);   setError("");
+    setPreset("ssc");   setLayout(PRESETS.ssc.layout);
   }, []);
 
   // ── Render ──
 
   return (
-    <>
-      <Navbar />
-
-      <main style={{ background: "var(--bg-subtle)", minHeight: "100vh", paddingBottom: 80 }}>
-
-        {/* ── Top Ad — flush under navbar ── */}
-        <div aria-hidden="true" style={{ background: "var(--bg-subtle)" }}>
-          <ins className="adsbygoogle" style={{ display: "block", minHeight: "90px" }}
-            data-ad-format="auto" data-full-width-responsive="true" />
-        </div>
-
-        <div className="container-sm" style={{ padding: "32px 20px 0" }}>
-
-          {/* ══ PAGE HEADER ══ */}
-          <div style={{ textAlign: "center", marginBottom: "28px" }}>
-            <div style={{ display: "inline-flex", alignItems: "center", gap: "7px", background: "var(--brand-light)", border: "1px solid var(--brand-border)", borderRadius: "var(--radius-sm)", padding: "4px 12px", marginBottom: "14px" }}>
-              <span style={{ fontSize: "9px", fontWeight: 800, color: "var(--brand)", letterSpacing: "1.5px", textTransform: "uppercase" }}>
-                🪪 Free Image Tool
-              </span>
-            </div>
-            <h1 style={{ fontSize: "clamp(24px, 4vw, 34px)", fontWeight: 900, letterSpacing: "-0.8px", color: "var(--text-primary)", lineHeight: 1.15, marginBottom: "10px" }}>
-              Photo + Signature Joiner
-            </h1>
-            <p style={{ fontSize: "14.5px", color: "var(--text-muted)", maxWidth: "460px", margin: "0 auto 16px", lineHeight: 1.65 }}>
-              Combine photo and signature for SSC, IBPS, Railway, UPSC & Vyapam forms.{" "}
-              <strong style={{ color: "var(--brand)" }}>Your files never leave your device.</strong>
-            </p>
-            <div style={{ display: "flex", gap: "8px", justifyContent: "center", flexWrap: "wrap", marginBottom: "18px" }}>
-              {[
-                { icon: "🔒", text: "100% Private" },
-                { icon: "⚡", text: "Instant" },
-                { icon: "📱", text: "Mobile Ready" },
-                { icon: "₹",  text: "Free Forever" },
-              ].map((t) => (
-                <span key={t.text} style={{ fontSize: "11.5px", padding: "4px 11px", background: "var(--brand-light)", color: "var(--brand)", borderRadius: "99px", fontWeight: 700, border: "1px solid var(--brand-mid)" }}>
-                  {t.icon} {t.text}
-                </span>
-              ))}
-            </div>
-            {/* FIX: ← All Tools button */}
-            <a
-              href="/"
-              style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "12.5px", fontWeight: 700, color: "var(--text-muted)", textDecoration: "none", padding: "7px 16px", borderRadius: "99px", border: "1.5px solid var(--border-light)", background: "#fff", boxShadow: "0 1px 4px rgba(0,0,0,0.06)", transition: "all 0.15s ease" }}
-              onMouseEnter={(e) => { const el = e.currentTarget as HTMLElement; el.style.borderColor = "var(--brand-border)"; el.style.color = "var(--brand)"; el.style.background = "var(--brand-light)"; }}
-              onMouseLeave={(e) => { const el = e.currentTarget as HTMLElement; el.style.borderColor = "var(--border-light)"; el.style.color = "var(--text-muted)"; el.style.background = "#fff"; }}
-            >
-              ← All Tools
-            </a>
-          </div>
+    <ToolPageShell toolHref="/photo-joiner">
 
           {/* ══ MAIN PANEL ══ */}
-          <div style={{ background: "#fff", border: "1.5px solid var(--border-light)", borderRadius: "var(--radius-xl)", padding: "26px", marginBottom: "20px", boxShadow: "var(--shadow-md)" }}>
+          <div className="ez-tool-workspace">
 
             {/* Step 1: Preset */}
             <div style={{ marginBottom: 24 }}>
@@ -409,7 +362,12 @@ export default function PhotoJoiner() {
                 {(Object.entries(PRESETS) as [PresetKey, Preset][]).map(([key, p]) => (
                   <button
                     key={key}
-                    onClick={() => { setPreset(key); setPreviewURL(""); setOutputBlob(null); }}
+                    onClick={() => {
+                      setPreset(key);
+                      setLayout(PRESETS[key].layout);
+                      setPreviewURL("");
+                      setOutputBlob(null);
+                    }}
                     style={{
                       padding: "10px 12px", borderRadius: "var(--radius-md)",
                       border: preset === key ? "2px solid var(--brand)" : "1.5px solid var(--border-light)",
@@ -490,10 +448,9 @@ export default function PhotoJoiner() {
                   </div>
                   <div
                     className={`upload-zone${photoDrag ? " drag-over" : ""}`}
-                    onClick={() => photoInputRef.current?.click()}
                     {...makeDragHandlers(setPhotoDrag, handlePhotoFile)}
                     style={{
-                      cursor: "pointer", minHeight: 130,
+                      minHeight: 130,
                       display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
                       gap: 8, padding: 12, position: "relative", overflow: "hidden",
                       borderColor: photoDrag ? "var(--brand)" : photoURL ? "var(--brand)" : undefined,
@@ -504,18 +461,32 @@ export default function PhotoJoiner() {
                       <>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={photoURL} alt="Photo preview" style={{ maxHeight: 110, maxWidth: "100%", borderRadius: "var(--radius-sm)", objectFit: "contain" }} />
-                        <span style={{ fontSize: 10, color: "var(--brand)", fontWeight: 600 }}>{photoFile?.name} · Click to change</span>
+                        <span style={{ fontSize: 10, color: "var(--brand)", fontWeight: 600 }}>{photoFile?.name}</span>
+                        <ImageCaptureUpload
+                          variant="buttons-only"
+                          dragDrop={false}
+                          accept="image/*,.heic,.heif"
+                          onFiles={(files) => {
+                            const f = files instanceof FileList ? files[0] : files[0];
+                            if (f) handlePhotoFile(f);
+                          }}
+                        />
                       </>
                     ) : (
-                      <>
-                        <div style={{ fontSize: 28, opacity: 0.5 }}>🖼️</div>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-secondary)", textAlign: "center" }}>Click or Drag & Drop</div>
-                        <div style={{ fontSize: 10.5, color: "var(--text-muted)", textAlign: "center" }}>JPG, PNG, WebP · max 20 MB</div>
-                      </>
+                      <ImageCaptureUpload
+                        variant="compact"
+                        dragDrop={false}
+                        accept="image/*,.heic,.heif"
+                        icon="🖼️"
+                        title="Take photo or pick gallery"
+                        hint="JPG, PNG, WebP · max 20 MB"
+                        onFiles={(files) => {
+                          const f = files instanceof FileList ? files[0] : files[0];
+                          if (f) handlePhotoFile(f);
+                        }}
+                      />
                     )}
                   </div>
-                  <input ref={photoInputRef} type="file" accept="image/*" style={{ display: "none" }}
-                    onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoFile(f); }} />
                 </div>
 
                 {/* Signature Upload */}
@@ -526,10 +497,9 @@ export default function PhotoJoiner() {
                   </div>
                   <div
                     className={`upload-zone${sigDrag ? " drag-over" : ""}`}
-                    onClick={() => sigInputRef.current?.click()}
                     {...makeDragHandlers(setSigDrag, handleSigFile)}
                     style={{
-                      cursor: "pointer", minHeight: 130,
+                      minHeight: 130,
                       display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
                       gap: 8, padding: 12, position: "relative", overflow: "hidden",
                       borderColor: sigDrag ? "var(--brand)" : sigURL ? "var(--brand)" : undefined,
@@ -540,18 +510,32 @@ export default function PhotoJoiner() {
                       <>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={sigURL} alt="Signature preview" style={{ maxHeight: 70, maxWidth: "100%", borderRadius: "var(--radius-sm)", objectFit: "contain", background: "#fff", padding: 4 }} />
-                        <span style={{ fontSize: 10, color: "var(--brand)", fontWeight: 600 }}>{sigFile?.name} · Click to change</span>
+                        <span style={{ fontSize: 10, color: "var(--brand)", fontWeight: 600 }}>{sigFile?.name}</span>
+                        <ImageCaptureUpload
+                          variant="buttons-only"
+                          dragDrop={false}
+                          accept="image/*,.heic,.heif"
+                          onFiles={(files) => {
+                            const f = files instanceof FileList ? files[0] : files[0];
+                            if (f) handleSigFile(f);
+                          }}
+                        />
                       </>
                     ) : (
-                      <>
-                        <div style={{ fontSize: 28, opacity: 0.5 }}>✍️</div>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-secondary)", textAlign: "center" }}>Click or Drag & Drop</div>
-                        <div style={{ fontSize: 10.5, color: "var(--text-muted)", textAlign: "center" }}>Sign on white paper · max 20 MB</div>
-                      </>
+                      <ImageCaptureUpload
+                        variant="compact"
+                        dragDrop={false}
+                        accept="image/*,.heic,.heif"
+                        icon="✍️"
+                        title="Photograph signature"
+                        hint="Sign on white paper · max 20 MB"
+                        onFiles={(files) => {
+                          const f = files instanceof FileList ? files[0] : files[0];
+                          if (f) handleSigFile(f);
+                        }}
+                      />
                     )}
                   </div>
-                  <input ref={sigInputRef} type="file" accept="image/*" style={{ display: "none" }}
-                    onChange={(e) => { const f = e.target.files?.[0]; if (f) handleSigFile(f); }} />
                 </div>
               </div>
             </div>
@@ -583,17 +567,12 @@ export default function PhotoJoiner() {
                   Step 4 — Preview &amp; Download
                 </label>
 
-                <div style={{ background: "var(--brand-light)", border: "1.5px solid var(--border-light)", borderRadius: "var(--radius-md)", padding: "10px 14px", marginBottom: 12, fontSize: 12.5, color: "var(--brand-dark)", display: "flex", gap: 8 }}>
-                  <span>ℹ️</span>
-                  <span>
-                    Output size: <strong>{formatKB(outputSize)}</strong> / {eff.maxKB} KB limit
-                    {outputSize > eff.maxKB * 1024
-                      ? " — ⚠️ Exceeds limit! Try a smaller photo."
-                      : " — ✅ Within limit"}
-                  </span>
-                </div>
+                <KBStatusBadge
+                  sizeKB={outputSize / 1024}
+                  maxKB={eff.maxKB}
+                  className="ez-kb-badge--block"
+                />
 
-                {/* FIX: preview box — CSS vars only, no hardcoded hex */}
                 <div style={{
                   background: "var(--bg-muted)",
                   borderRadius: "var(--radius-lg)",
@@ -610,11 +589,17 @@ export default function PhotoJoiner() {
                   />
                 </div>
 
-                <div style={{ display: "flex", gap: 10 }}>
-                  <button className="btn-primary" onClick={handleDownload} style={{ flex: 2, padding: "12px 20px", fontSize: 14 }}>
-                    ⬇️ Download JPEG
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                  <button className="btn-primary" onClick={handleDownload} style={{ flex: "2 1 160px", padding: "12px 20px", fontSize: 14 }}>
+                    ⬇️ Combined JPEG
                   </button>
-                  <button className="btn-secondary" onClick={handleReset} style={{ flex: 1 }}>
+                  <button className="btn-secondary" onClick={handleDownloadPhoto} style={{ flex: "1 1 120px" }}>
+                    📷 Photo only
+                  </button>
+                  <button className="btn-secondary" onClick={handleDownloadSig} style={{ flex: "1 1 120px" }}>
+                    ✍️ Signature only
+                  </button>
+                  <button className="btn-secondary" onClick={handleReset} style={{ flex: "1 1 100px" }}>
                     🔄 Reset
                   </button>
                 </div>
@@ -627,16 +612,8 @@ export default function PhotoJoiner() {
             {/* Idle CTA */}
             {!photoURL && !sigURL && (
               <div style={{ textAlign: "center", padding: "16px 0 4px" }}>
-                <div style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 12 }}>
-                  Upload your photo and signature above to get started instantly.
-                </div>
-                <div style={{ display: "flex", justifyContent: "center", gap: 16, flexWrap: "wrap" }}>
-                  <button className="btn-primary" onClick={() => photoInputRef.current?.click()} style={{ fontSize: 13 }}>
-                    📷 Upload Photo
-                  </button>
-                  <button className="btn-secondary" onClick={() => sigInputRef.current?.click()} style={{ fontSize: 13 }}>
-                    ✍️ Upload Signature
-                  </button>
+                <div style={{ fontSize: 13, color: "var(--text-muted)" }}>
+                  Use 📷 Take Photo or 🖼️ Gallery in the upload boxes above — works directly from your phone camera.
                 </div>
               </div>
             )}
@@ -716,44 +693,15 @@ export default function PhotoJoiner() {
             <FAQSection />
           </section>
 
-          {/* ── Related Tools (8 cards) ── */}
-          <section style={{ marginBottom: "16px" }}>
-            <h2 style={{ fontSize: 14, fontWeight: 800, color: "var(--text-secondary)", marginBottom: 12 }}>
-              🔗 Related Tools
-            </h2>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(145px, 1fr))", gap: 10 }}>
-              {[
-                { href: "/image-resize",  icon: "🖼️", title: "Image Resize",    desc: "Resize for any exam"       },
-                { href: "/image-to-pdf",  icon: "📄", title: "Image to PDF",    desc: "Convert images to PDF"     },
-                { href: "/image-crop",    icon: "🎨", title: "Image Crop",      desc: "Crop to exact dimensions"  },
-                { href: "/pdf-compress",  icon: "🗜️", title: "PDF Compress",    desc: "Reduce PDF file size"      },
-                { href: "/pdf-merge",     icon: "🔗", title: "PDF Merge",       desc: "Combine PDFs into one"     },
-                { href: "/pdf-split",     icon: "✂️", title: "PDF Split",       desc: "Extract PDF pages"         },
-                { href: "/pdf-protect",   icon: "🔒", title: "PDF Protect",     desc: "Password protect PDF"      },
-                { href: "/typing-test",   icon: "⌨️", title: "Typing Test",       desc: "CPCT, SSC practice"        },
-              ].map((t) => (
-                <a key={t.href} href={t.href} className="tool-card" style={{ padding: "14px" }}>
-                  <div className="tool-card-icon" style={{ marginBottom: 7 }}>{t.icon}</div>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-primary)", marginBottom: 3 }}>{t.title}</div>
-                  <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{t.desc}</div>
-                </a>
-              ))}
-            </div>
-          </section>
+          <ToolWorkflowCTA
+            steps={[
+              { label: "Resize photo first", href: "/image-resize" },
+              { label: "Crop photo", href: "/image-crop" },
+              { label: "Convert to PDF", href: "/image-to-pdf" },
+            ]}
+          />
 
-        </div>
-
-        {/* ── Bottom Ad ── */}
-        <div aria-hidden="true">
-          <ins className="adsbygoogle" style={{ display: "block", minHeight: "90px" }}
-            data-ad-format="auto" data-full-width-responsive="true" />
-        </div>
-
-        {/* FIX: Shared Footer component */}
-        <Footer />
-
-      </main>
-    </>
+    </ToolPageShell>
   );
 }
 

@@ -22,6 +22,7 @@
 
 /* ── Google Font Import ────────────────────────────────────── */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=Sora:wght@600;700;800&display=swap');
+@import './styles/tokens.css';
 @import './styles/brand-v2.css';
 
 /* ── CSS Reset ─────────────────────────────────────────────── */
@@ -50,60 +51,7 @@ img, video { max-width: 100%; display: block; }
 button { cursor: pointer; }
 a { color: inherit; }
 
-/* ── Design Tokens ─────────────────────────────────────────── */
-:root {
-
-  /* Brand — Teal */
-  --brand:         #0D9488;
-  --brand-hover:   #0B7C72;
-  --brand-dark:    #134E4A;
-  --brand-light:   #F0FDFA;
-  --brand-mid:     #CCFBF1;
-  --brand-border:  #99F6E4;
-
-  /* Accent — Warm Amber (CTAs only) */
-  --accent:        #D97706;
-  --accent-hover:  #B45309;
-  --accent-light:  #FFFBEB;
-  --accent-border: #FDE68A;
-
-  /* Backgrounds */
-  --bg-base:       #FFFFFF;
-  --bg-subtle:     #F8FFFE;
-  --bg-muted:      #F0FDFA;
-  --bg-section:    #FAFFFE;
-  --bg-card:       #FFFFFF;
-  --bg-white:      #FFFFFF;
-
-  /* Text */
-  --text-primary:   #0A1628;
-  --text-secondary: #374151;
-  --text-muted:     #6B7280;
-  --text-hint:      #9CA3AF;
-
-  /* Borders */
-  --border-light:  #E5F7F5;
-  --border-medium: #CCFBF1;
-  --border-strong: #99F6E4;
-
-  /* Shadows — teal-tinted */
-  --shadow-xs: 0 1px 2px rgba(13,148,136,.04);
-  --shadow-sm: 0 1px 4px rgba(13,148,136,.06);
-  --shadow-md: 0 4px 16px rgba(13,148,136,.10);
-  --shadow-lg: 0 12px 36px rgba(13,148,136,.13);
-  --shadow-xl: 0 24px 64px rgba(13,148,136,.16);
-
-  /* Border radius */
-  --radius-sm:  6px;
-  --radius-md:  10px;
-  --radius-lg:  14px;
-  --radius-xl:  20px;
-  --radius-2xl: 28px;
-  --radius-3xl: 40px;
-
-  /* Font */
-  --font: 'Plus Jakarta Sans', sans-serif;
-}
+/* Design tokens → app/styles/tokens.css */
 
 /* ── Scrollbar ─────────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -799,14 +747,14 @@ a { color: inherit; }
    ══════════════════════════════════════════════════════════════ */
 
 .cta-band {
-  background: linear-gradient(135deg, #0A2E2B 0%, #134E4A 60%, #0D9488 100%);
+  background: var(--grad-dark);
   padding: 52px 24px; text-align: center;
   position: relative; overflow: hidden;
 }
 .cta-band::before {
   content: ''; position: absolute; inset: 0;
-  background-image: radial-gradient(circle, rgba(255,255,255,.04) 1px, transparent 1px);
-  background-size: 22px 22px; pointer-events: none;
+  background: var(--grad-dark-accent);
+  pointer-events: none;
 }
 .cta-band h2 {
   color: #fff; font-size: clamp(20px, 3vw, 30px); font-weight: 900;
@@ -1129,18 +1077,7 @@ a { color: inherit; }
 }
 .ez-trust-row span { font-size: 13.5px; color: var(--text-secondary); }
 
-/* ── CTA band ── */
-.ez-cta-band {
-  background: linear-gradient(135deg, #0A2E2B 0%, #134E4A 60%, #0D9488 100%);
-  padding: 56px 24px; text-align: center; position: relative; overflow: hidden;
-}
-.ez-cta-band::before {
-  content: ''; position: absolute; inset: 0;
-  background-image: radial-gradient(circle, rgba(255,255,255,.05) 1px, transparent 1px);
-  background-size: 22px 22px; pointer-events: none;
-}
-.ez-cta-title { color: #fff; font-size: clamp(22px, 3vw, 32px); font-weight: 900; letter-spacing: -.6px; margin: 20px 0 10px; }
-.ez-cta-sub   { color: rgba(255,255,255,.7); font-size: 14px; margin-bottom: 28px; line-height: 1.65; }
+/* CTA band → app/styles/brand-v2.css (ez-site-close) */
 
 /* ── Homepage footer (uses shared .footer class) ── */
 .ez-footer       { border-top: 1px solid var(--border-light); padding: 28px 24px; background: var(--bg-base); }

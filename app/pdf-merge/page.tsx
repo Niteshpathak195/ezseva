@@ -25,8 +25,7 @@
 
 import { useState, useRef, useCallback } from "react";
 import { PDFDocument } from "pdf-lib";
-import Navbar from "../components/Navbar";
-import Footer from "../components/Footer";
+import ToolPageShell from "../components/tools/ToolPageShell";
 
 /* ─── Types ──────────────────────────────────────────────────── */
 
@@ -128,7 +127,9 @@ export default function PdfMergePage() {
     const arr = Array.from(files);
     // SECURITY: validate BOTH MIME type AND file extension
     const pdfs = arr.filter(
-      (f) => f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf")
+      (f) =>
+        (f.type === "application/pdf" || !f.type) &&
+        f.name.toLowerCase().endsWith(".pdf")
     );
     if (pdfs.length === 0) { setErrorMsg("Please select PDF files only."); return; }
 
@@ -358,57 +359,7 @@ export default function PdfMergePage() {
 
   /* ─────────────────────────────────────────────────────────── */
   return (
-    <>
-      <Navbar />
-      <main style={{ background: "var(--bg-subtle)", minHeight: "100vh", paddingBottom: "56px" }}>
-
-        {/* ── Top Ad — flush under navbar, zero top padding ── */}
-        <div aria-hidden="true" style={{ background: "var(--bg-subtle)" }}>
-          <ins
-            className="adsbygoogle"
-            style={{ display: "block", minHeight: "90px" }}
-            data-ad-format="auto"
-            data-full-width-responsive="true"
-          />
-        </div>
-
-        <div className="container-sm" style={{ padding: "32px 20px 0" }}>
-
-          {/* ══ PAGE HEADER ══ */}
-          <div style={{ textAlign: "center", marginBottom: "28px" }}>
-            <div style={{ display: "inline-flex", alignItems: "center", gap: "7px", background: "var(--brand-light)", border: "1px solid var(--brand-border)", borderRadius: "var(--radius-sm)", padding: "4px 12px", marginBottom: "14px" }}>
-              <span style={{ fontSize: "9px", fontWeight: 800, color: "var(--brand)", letterSpacing: "1.5px", textTransform: "uppercase" }}>
-                🔗 Free PDF Tool
-              </span>
-            </div>
-            <h1 style={{ fontSize: "clamp(24px, 4vw, 34px)", fontWeight: 900, letterSpacing: "-0.8px", color: "var(--text-primary)", lineHeight: 1.15, marginBottom: "10px" }}>
-              PDF Merge — Combine PDFs Free
-            </h1>
-            <p style={{ fontSize: "14.5px", color: "var(--text-muted)", maxWidth: "460px", margin: "0 auto 16px", lineHeight: 1.65 }}>
-              Merge multiple PDFs into one. Reorder, select page ranges, download instantly.{" "}
-              <strong style={{ color: "var(--brand)" }}>Your files never leave your device.</strong>
-            </p>
-            <div style={{ display: "flex", gap: "8px", justifyContent: "center", flexWrap: "wrap", marginBottom: "18px" }}>
-              {[
-                { icon: "🔒", text: "100% Private" },
-                { icon: "⚡", text: "Instant" },
-                { icon: "📱", text: "Mobile Ready" },
-                { icon: "₹", text: "Free Forever" },
-              ].map((t) => (
-                <span key={t.text} style={{ fontSize: "11.5px", padding: "4px 11px", background: "var(--brand-light)", color: "var(--brand)", borderRadius: "99px", fontWeight: 700, border: "1px solid var(--brand-mid)" }}>
-                  {t.icon} {t.text}
-                </span>
-              ))}
-            </div>
-            <a
-              href="/"
-              style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "12.5px", fontWeight: 700, color: "var(--text-muted)", textDecoration: "none", padding: "7px 16px", borderRadius: "99px", border: "1.5px solid var(--border-light)", background: "#fff", boxShadow: "0 1px 4px rgba(0,0,0,0.06)", transition: "all 0.15s ease" }}
-              onMouseEnter={(e) => { const el = e.currentTarget as HTMLElement; el.style.borderColor = "var(--brand-border)"; el.style.color = "var(--brand)"; el.style.background = "var(--brand-light)"; }}
-              onMouseLeave={(e) => { const el = e.currentTarget as HTMLElement; el.style.borderColor = "var(--border-light)"; el.style.color = "var(--text-muted)"; el.style.background = "#fff"; }}
-            >
-              ← All Tools
-            </a>
-          </div>
+    <ToolPageShell toolHref="/pdf-merge">
 
           {/* ── Error ── */}
           {errorMsg && (
@@ -420,7 +371,7 @@ export default function PdfMergePage() {
           {/* ══ UPLOAD ZONE ══ */}
           {status !== "done" && (
             <div
-              className={`upload-zone${isDragOver ? " drag-over" : ""}`}
+              className={`ez-tool-workspace upload-zone${isDragOver ? " drag-over" : ""}`}
               onDragOver={onZoneDragOver}
               onDragLeave={onZoneDragLeave}
               onDrop={onZoneDrop}
@@ -713,46 +664,7 @@ export default function PdfMergePage() {
             ))}
           </section>
 
-          {/* ══ RELATED TOOLS — 8 cards ══ */}
-          <section aria-label="More free tools" style={{ marginBottom: "8px" }}>
-            <h2 style={{ fontSize: "15px", fontWeight: 800, marginBottom: "12px", color: "var(--text-secondary)" }}>🔗 More Free Tools</h2>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(145px, 1fr))", gap: "10px" }}>
-              {[
-                { icon: "📄", title: "Image to PDF",      href: "/image-to-pdf",  desc: "Convert images to PDF" },
-                { icon: "📦", title: "PDF Compress",      href: "/pdf-compress",  desc: "Reduce PDF size" },
-                { icon: "✂️", title: "PDF Split",         href: "/pdf-split",     desc: "Split PDF pages" },
-                { icon: "🔒", title: "PDF Protect",       href: "/pdf-protect",   desc: "Password protect PDF" },
-                { icon:"🎨",title:"Image Crop",      href:"/image-crop",   desc:"Crop photo to any size" },
-                { icon: "🖼️", title: "Image Resize",     href: "/image-resize",  desc: "Resize for govt exams" },
-                { icon: "🪪", title: "Photo + Signature", href: "/photo-joiner",  desc: "Merge for govt forms" },
-                { icon:"⌨️",title:"Typing Test",     href:"/typing-test",  desc:"CPCT, SSC practice"    },
-              ].map((t) => (
-                <a key={t.href} href={t.href} className="tool-card" style={{ padding: "14px", opacity: 1, animation: "none" }}>
-                  <div className="tool-card-icon" style={{ marginBottom: "7px" }}>{t.icon}</div>
-                  <div style={{ fontSize: "12px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "3px" }}>{t.title}</div>
-                  <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{t.desc}</div>
-                </a>
-              ))}
-            </div>
-          </section>
-
-        </div>
-
-        {/* ── Bottom Ad ── */}
-        <div aria-hidden="true" style={{ maxWidth: 720, margin: "0 auto", padding: "20px 16px 0" }}>
-          <ins
-            className="adsbygoogle"
-            style={{ display: "block", minHeight: "90px" }}
-            data-ad-format="auto"
-            data-full-width-responsive="true"
-          />
-        </div>
-
-        {/* FIX 8: Footer component — no inline footer HTML */}
-        <Footer />
-
-      </main>
-    </>
+    </ToolPageShell>
   );
 }
 

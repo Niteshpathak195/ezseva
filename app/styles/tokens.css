@@ -1,0 +1,103 @@
+/* ═══════════════════════════════════════════════════════════════
+   EzSeva Design Tokens — single source of truth
+   Premium · neutral slate surfaces · refined teal accent
+   Inspired by: Linear, Stripe, Vercel (classy, not loud)
+   ═══════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ── Brand (refined teal — actions & links only) ── */
+  --brand:         #0D9488;
+  --brand-hover:   #0F766E;
+  --brand-dark:    #115E59;
+  --brand-light:   #F0FDFA;
+  --brand-mid:     #CCFBF1;
+  --brand-border:  #5EEAD4;
+  --brand-glow:    rgba(13, 148, 136, 0.22);
+
+  /* ── Secondary accent (gradients, category PDF) ── */
+  --accent:        #6366F1;
+  --accent-hover:  #4F46E5;
+  --accent-light:  #EEF2FF;
+  --accent-cyan:   #06B6D4;
+  --accent-pink:   #EC4899;
+
+  /* ── Surfaces (neutral slate — no green wash) ── */
+  --bg-base:       #FFFFFF;
+  --bg-subtle:     #F8FAFC;
+  --bg-muted:      #F1F5F9;
+  --bg-section:    #FAFBFC;
+  --bg-card:       #FFFFFF;
+  --bg-white:      #FFFFFF;
+  --bg-inverse:    #0C1222;
+
+  /* ── Text hierarchy ── */
+  --text-primary:   #0F172A;
+  --text-secondary: #334155;
+  --text-muted:     #64748B;
+  --text-hint:      #94A3B8;
+  --text-inverse:   #F1F5F9;
+
+  /* ── Borders (neutral) ── */
+  --border-light:  #E2E8F0;
+  --border-medium: #CBD5E1;
+  --border-strong: #94A3B8;
+
+  /* ── Dark sections (footer, privacy, CTA — unified) ── */
+  --navy:          #0C1222;
+  --navy-mid:      #121A2E;
+  --navy-elevated: #1A2236;
+  --navy-border:   rgba(255, 255, 255, 0.08);
+  --navy-text:     rgba(255, 255, 255, 0.78);
+  --navy-text-muted: rgba(255, 255, 255, 0.52);
+
+  /* ── Gradients (restrained) ── */
+  --grad-brand:    linear-gradient(135deg, #14B8A6 0%, #0D9488 48%, #6366F1 100%);
+  --grad-brand-hover: linear-gradient(135deg, #0D9488 0%, #0F766E 48%, #4F46E5 100%);
+  --grad-hero:     radial-gradient(ellipse 100% 80% at 18% -15%, rgba(13, 148, 136, 0.07) 0%, transparent 52%),
+                   radial-gradient(ellipse 70% 55% at 92% 5%, rgba(99, 102, 241, 0.05) 0%, transparent 48%),
+                   linear-gradient(180deg, #FFFFFF 0%, var(--bg-subtle) 100%);
+  --grad-mesh:     conic-gradient(from 200deg at 50% 50%, rgba(13,148,136,.04), rgba(99,102,241,.03), rgba(13,148,136,.04));
+  --grad-dark:     linear-gradient(180deg, var(--navy-mid) 0%, var(--navy) 100%);
+  --grad-dark-accent:
+    radial-gradient(ellipse 80% 60% at 15% 0%, rgba(13, 148, 136, 0.12) 0%, transparent 55%),
+    radial-gradient(ellipse 60% 50% at 85% 20%, rgba(99, 102, 241, 0.08) 0%, transparent 50%);
+
+  /* ── Shadows (slate-tinted, premium) ── */
+  --shadow-xs:  0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-sm:  0 1px 4px rgba(15, 23, 42, 0.06);
+  --shadow-md:  0 4px 16px rgba(15, 23, 42, 0.08);
+  --shadow-lg:  0 12px 36px rgba(15, 23, 42, 0.10);
+  --shadow-xl:  0 24px 64px rgba(15, 23, 42, 0.12);
+  --shadow-glow: 0 8px 28px var(--brand-glow);
+  --shadow-card: 0 4px 24px rgba(15, 23, 42, 0.06), 0 0 0 1px rgba(15, 23, 42, 0.04);
+  --shadow-card-hover: 0 16px 48px rgba(15, 23, 42, 0.10), 0 0 0 1px rgba(13, 148, 136, 0.10);
+
+  /* ── Glass (navbar) ── */
+  --glass:         rgba(255, 255, 255, 0.82);
+  --glass-border:  rgba(226, 232, 240, 0.9);
+
+  /* ── Typography ── */
+  --font-heading:  'Sora', 'Plus Jakarta Sans', sans-serif;
+  --font-body:     'Inter', 'Plus Jakarta Sans', sans-serif;
+  --font-mono:     'JetBrains Mono', ui-monospace, monospace;
+  --font:          var(--font-body);
+
+  /* ── Radius ── */
+  --radius-sm:  6px;
+  --radius-md:  10px;
+  --radius-lg:  14px;
+  --radius-xl:  20px;
+  --radius-2xl: 28px;
+  --radius-3xl: 40px;
+
+  /* ── Category accents (cards + tool pages) ── */
+  --cat-image:       #0D9488;
+  --cat-image-soft:  #F0FDFA;
+  --cat-image-grad:  linear-gradient(135deg, #14B8A6 0%, #0D9488 100%);
+  --cat-pdf:         #6366F1;
+  --cat-pdf-soft:    #EEF2FF;
+  --cat-pdf-grad:    linear-gradient(135deg, #818CF8 0%, #6366F1 100%);
+  --cat-practice:    #7C3AED;
+  --cat-practice-soft: #F5F3FF;
+  --cat-practice-grad: linear-gradient(135deg, #A78BFA 0%, #7C3AED 100%);
+}

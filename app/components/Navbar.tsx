@@ -1,17 +1,14 @@
 "use client";
 
-// ─────────────────────────────────────────────
-// EzSeva — Navbar Component
-// app/components/Navbar.tsx
-// ─────────────────────────────────────────────
-
 import { useState, useEffect, useRef, useCallback } from "react";
+import { usePathname } from "next/navigation";
 import Logo from "./Logo";
-import { TOOLS, NAV_ITEMS, type Category } from "../data/tools";
+import { TOOLS, NAV_ITEMS, CATEGORY_META, TOOL_COUNT, type Category } from "../data/tools";
+import { SITE } from "../data/site-content";
+import { useLocale } from "../context/LocaleContext";
 
-/* ── useHoverDelay hook ── */
 function useHoverDelay(openDelay = 120, closeDelay = 220) {
-  const openTimerRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const openTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const cancelOpen = useCallback(() => {
@@ -22,25 +19,59 @@ function useHoverDelay(openDelay = 120, closeDelay = 220) {
     if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
   }, []);
 
-  const scheduleOpen = useCallback((cb: () => void) => {
-    cancelOpen();
-    openTimerRef.current = setTimeout(cb, openDelay);
-  }, [openDelay, cancelOpen]);
+  const scheduleOpen = useCallback(
+    (cb: () => void) => {
+      cancelOpen();
+      openTimerRef.current = setTimeout(cb, openDelay);
+    },
+    [openDelay, cancelOpen]
+  );
 
-  const scheduleClose = useCallback((cb: () => void) => {
-    cancelClose();
-    closeTimerRef.current = setTimeout(cb, closeDelay);
-  }, [closeDelay, cancelClose]);
+  const scheduleClose = useCallback(
+    (cb: () => void) => {
+      cancelClose();
+      closeTimerRef.current = setTimeout(cb, closeDelay);
+    },
+    [closeDelay, cancelClose]
+  );
 
-  useEffect(() => () => {
-    if (openTimerRef.current)  clearTimeout(openTimerRef.current);
-    if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
-  }, []);
+  useEffect(
+    () => () => {
+      if (openTimerRef.current) clearTimeout(openTimerRef.current);
+      if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+    },
+    []
+  );
 
   return { scheduleOpen, scheduleClose, cancelOpen, cancelClose };
 }
 
-/* ── MegaDropdown ── */
+function ChevronDown({
+  className,
+  style,
+}: {
+  className?: string;
+  style?: React.CSSProperties;
+}) {
+  return (
+    <svg
+      className={className}
+      style={style}
+      width="10"
+      height="10"
+      viewBox="0 0 10 10"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <polyline points="2 3.5 5 6.5 8 3.5" />
+    </svg>
+  );
+}
+
 function MegaDropdown({
   catConfig,
   isOpen,
@@ -49,170 +80,90 @@ function MegaDropdown({
   isOpen: boolean;
 }) {
   const tools = TOOLS.filter((t) => t.cat === catConfig.cat);
+  const meta = CATEGORY_META[catConfig.cat as keyof typeof CATEGORY_META];
 
   return (
-    /* Invisible paddingTop bridges the gap so mouse path button → menu stays "inside" */
-    <div
-      style={{
-        position:      "absolute",
-        top:           "100%",
-        left:          "50%",
-        transform:     isOpen
-          ? "translateX(-50%) translateY(0)"
-          : "translateX(-50%) translateY(-6px)",
-        paddingTop:    "10px",
-        opacity:       isOpen ? 1 : 0,
-        pointerEvents: isOpen ? "auto" : "none",
-        transition:    "opacity 0.18s ease, transform 0.18s ease",
-        zIndex:        100,
-      }}
-    >
-    <div
-      role="menu"
-      aria-label={`${catConfig.label} tools`}
-      style={{
-        background: "#ffffff",
-        border: "1.5px solid var(--border-light)",
-        borderRadius: "var(--radius-xl)",
-        boxShadow:
-          "0 24px 64px rgba(13,148,136,.14), 0 4px 20px rgba(0,0,0,.06)",
-        padding: "20px",
-        minWidth: "320px",
-        width: "360px",
-      }}
-    >
-      {/* Arrow tip */}
-      <div style={{
-        position: "absolute",
-        top: "-7px",
-        left: "50%",
-        transform: "translateX(-50%)",
-        width: 14,
-        height: 14,
-        background: "#fff",
-        border: "1.5px solid var(--border-light)",
-        borderRight: "none",
-        borderBottom: "none",
-        rotate: "45deg",
-      }} />
-
-      {/* Header */}
-      <div style={{
-        display: "flex",
-        alignItems: "center",
-        gap: "8px",
-        paddingBottom: "12px",
-        marginBottom: "8px",
-        borderBottom: "1px solid var(--border-light)",
-      }}>
-        <div style={{
-          width: 28, height: 28,
-          background: "var(--brand-light)",
-          border: "1px solid var(--brand-mid)",
-          borderRadius: 8,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: 14,
-        }}>{catConfig.icon}</div>
-        <span style={{
-          fontSize: "11px", fontWeight: 800,
-          letterSpacing: "1.2px", textTransform: "uppercase",
-          color: "var(--brand)",
-        }}>{catConfig.label}</span>
-        <span style={{
-          marginLeft: "auto", fontSize: "10px",
-          color: "var(--text-muted)", fontWeight: 600,
-          background: "var(--bg-muted)",
-          padding: "2px 8px", borderRadius: 10,
-        }}>{tools.length} tools</span>
-      </div>
-
-      {/* Tool list */}
-      <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-        {tools.map((tool) => (
-          <a
-            key={tool.href}
-            href={tool.href}
-            role="menuitem"
-            style={{
-              display: "flex", alignItems: "center", gap: "10px",
-              padding: "9px 10px", borderRadius: "var(--radius-md)",
-              textDecoration: "none",
-              transition: "background 0.13s ease",
-            }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--brand-light)"; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+    <div className={`ez-nav-dropdown-bridge${isOpen ? "" : ""}`}>
+      <div
+        className="ez-nav-dropdown-panel"
+        role="menu"
+        aria-label={`${catConfig.label} tools`}
+        style={
+          {
+            "--tool-accent": meta?.accent,
+          } as React.CSSProperties
+        }
+      >
+        <div className="ez-nav-dropdown-head">
+          <div
+            className="ez-nav-dropdown-cat-icon"
+            style={{ background: meta?.accentSoft, color: meta?.accent }}
           >
-            <div style={{
-              width: 36, height: 36,
-              borderRadius: 9, background: "var(--brand-light)",
-              border: "1px solid var(--brand-mid)",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 17, flexShrink: 0,
-            }}>{tool.icon}</div>
+            {catConfig.icon}
+          </div>
+          <span
+            className="ez-nav-dropdown-label"
+            style={{ color: meta?.accent }}
+          >
+            {catConfig.label}
+          </span>
+          <span className="ez-nav-dropdown-count">
+            {tools.length} tools
+          </span>
+        </div>
 
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 2 }}>
-                <span style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          {tools.map((tool) => (
+            <a
+              key={tool.href}
+              href={tool.href}
+              role="menuitem"
+              className="ez-nav-dropdown-tool"
+              style={
+                {
+                  "--tool-accent": meta?.accent,
+                  "--tool-icon-bg": meta?.accentSoft,
+                } as React.CSSProperties
+              }
+            >
+              <div className="ez-nav-tool-icon">{tool.icon}</div>
+              <div className="ez-nav-tool-body">
+                <div className="ez-nav-tool-title">
                   {tool.title}
-                </span>
-                {tool.ai && (
-                  <span style={{
-                    fontSize: "8px", fontWeight: 800,
-                    background: "#FEF3C7", color: "#92400E",
-                    padding: "1px 5px", borderRadius: 3,
-                  }}>AI</span>
-                )}
-                {tool.hot && (
-                  <span style={{
-                    fontSize: "8px", fontWeight: 800,
-                    background: "#FFF1F2", color: "#BE123C",
-                    border: "1px solid #FECDD3",
-                    padding: "1px 5px", borderRadius: 3,
-                  }}>HOT</span>
-                )}
+                  {tool.hot && (
+                    <span className="ez-nav-badge-hot">HOT</span>
+                  )}
+                </div>
+                <span className="ez-nav-tool-desc">{tool.desc}</span>
               </div>
-              <span style={{
-                fontSize: "11px", color: "var(--text-muted)",
-                whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                display: "block",
-              }}>{tool.desc}</span>
-            </div>
+              <span className="ez-nav-tool-uses">{tool.uses}</span>
+            </a>
+          ))}
+        </div>
 
-            <span style={{ fontSize: "10px", fontWeight: 700, color: "var(--brand)", flexShrink: 0 }}>
-              {tool.uses}
-            </span>
+        <div className="ez-nav-dropdown-footer">
+          <a href={`/#tools?cat=${catConfig.cat}`}>
+            View all {catConfig.label} →
           </a>
-        ))}
+        </div>
       </div>
-
-      {/* View all */}
-      <div style={{ borderTop: "1px solid var(--border-light)", marginTop: 10, paddingTop: 10 }}>
-        <a
-          href={`/#tools?cat=${catConfig.cat}`}
-          style={{
-            display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
-            fontSize: "12px", fontWeight: 700, color: "var(--brand)", textDecoration: "none",
-          }}
-        >
-          View all {catConfig.label} →
-        </a>
-      </div>
-    </div>
     </div>
   );
 }
 
-/* ── Main Navbar ── */
 export default function Navbar() {
-  const [openDrop, setOpenDrop]         = useState<string | null>(null);
-  const [mobileOpen, setMobileOpen]     = useState(false);
-  const [mobileExp, setMobileExp]       = useState<string | null>(null);
-  const [scrolled, setScrolled]         = useState(false);
+  const pathname = usePathname();
+  const { lang, setLang, t, locales } = useLocale();
+  const [openDrop, setOpenDrop] = useState<string | null>(null);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [mobileExp, setMobileExp] = useState<string | null>(null);
+  const [scrolled, setScrolled] = useState(false);
   const navRef = useRef<HTMLElement>(null);
-  const { scheduleOpen, scheduleClose, cancelOpen, cancelClose } = useHoverDelay();
+  const { scheduleOpen, scheduleClose, cancelOpen, cancelClose } =
+    useHoverDelay();
 
   useEffect(() => {
-    const h = () => setScrolled(window.scrollY > 4);
+    const h = () => setScrolled(window.scrollY > 8);
     window.addEventListener("scroll", h, { passive: true });
     return () => window.removeEventListener("scroll", h);
   }, []);
@@ -220,7 +171,8 @@ export default function Navbar() {
   useEffect(() => {
     const h = (e: MouseEvent) => {
       if (navRef.current && !navRef.current.contains(e.target as Node)) {
-        setOpenDrop(null); setMobileOpen(false);
+        setOpenDrop(null);
+        setMobileOpen(false);
       }
     };
     document.addEventListener("mousedown", h);
@@ -243,150 +195,282 @@ export default function Navbar() {
     setOpenDrop((prev) => (prev === label ? null : label));
   };
 
-  const closeAll = () => { cancelOpen(); cancelClose(); setOpenDrop(null); setMobileOpen(false); setMobileExp(null); };
+  const closeAll = () => {
+    cancelOpen();
+    cancelClose();
+    setOpenDrop(null);
+    setMobileOpen(false);
+    setMobileExp(null);
+  };
+
+  const isActive = (href: string) => pathname === href;
 
   return (
-    <header ref={navRef} className={`ez-nav-header${scrolled ? " is-scrolled" : ""}`}>
-      {/* ── Desktop Row ── */}
-      <div className="container ez-nav-inner">
-        <a href="/" onClick={closeAll} aria-label="EzSeva — Home"
-          style={{ textDecoration: "none", flexShrink: 0 }}>
-          <Logo size="nav" />
-        </a>
-
-        {/* Center nav */}
-        <nav aria-label="Primary navigation" className="hide-mobile"
-          style={{ display: "flex", alignItems: "center", gap: 2 }}>
-          {NAV_ITEMS.map((item) => (
-            <div key={item.label} style={{ position: "relative" }}
-              onMouseEnter={() => handleMouseEnter(item.label)}
-              onMouseLeave={handleMouseLeave}>
-              <button
-                type="button"
-                aria-haspopup="true"
-                aria-expanded={openDrop === item.label}
-                onClick={() => toggleDrop(item.label)}
-                style={{
-                  display: "flex", alignItems: "center", gap: 5,
-                  padding: "7px 13px", borderRadius: "var(--radius-md)",
-                  border: "none",
-                  background: openDrop === item.label ? "var(--brand-light)" : "transparent",
-                  color: openDrop === item.label ? "var(--brand)" : "var(--text-secondary)",
-                  fontSize: 13, fontWeight: 600, cursor: "pointer",
-                  fontFamily: "var(--font)", transition: "all 0.15s ease", whiteSpace: "nowrap",
-                }}>
-                <span style={{ fontSize: 14 }}>{item.icon}</span>
-                {item.label}
-                <svg width="10" height="10" viewBox="0 0 10 10" fill="none"
-                  stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
-                  style={{ transform: openDrop === item.label ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s ease" }}>
-                  <polyline points="2 3.5 5 6.5 8 3.5" />
-                </svg>
-              </button>
-              <MegaDropdown catConfig={item} isOpen={openDrop === item.label} />
-            </div>
-          ))}
-
-          <a href="/typing-test" style={{
-            padding: "7px 13px", borderRadius: "var(--radius-md)",
-            fontSize: 13, fontWeight: 600, color: "var(--text-secondary)",
-            textDecoration: "none", transition: "all 0.15s ease", whiteSpace: "nowrap",
-          }}
-            onMouseEnter={(e) => { const el = e.currentTarget as HTMLElement; el.style.background = "var(--brand-light)"; el.style.color = "var(--brand)"; }}
-            onMouseLeave={(e) => { const el = e.currentTarget as HTMLElement; el.style.background = "transparent"; el.style.color = "var(--text-secondary)"; }}>
-            ⌨️ Typing Test
-          </a>
-
-          <a href="/guide" style={{
-            padding: "7px 13px", borderRadius: "var(--radius-md)",
-            fontSize: 13, fontWeight: 600, color: "var(--text-secondary)",
-            textDecoration: "none", transition: "all 0.15s ease", whiteSpace: "nowrap",
-          }}
-            onMouseEnter={(e) => { const el = e.currentTarget as HTMLElement; el.style.background = "var(--brand-light)"; el.style.color = "var(--brand)"; }}
-            onMouseLeave={(e) => { const el = e.currentTarget as HTMLElement; el.style.background = "transparent"; el.style.color = "var(--text-secondary)"; }}>
-            How to Use
-          </a>
-        </nav>
-
-        {/* Right side */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-          {/* PREMIUM BUTTON — uncomment when premium plan is live
-          <a href="/premium" className="btn-cta"
-            style={{ fontSize: 12, padding: "8px 16px", whiteSpace: "nowrap" }}
-            aria-label="Upgrade to EzSeva Premium">
-            ⚡ Go Premium — ₹49/mo
-          </a>
-          */}
-
-          {/* Hamburger */}
-          <button
-            onClick={() => setMobileOpen((p) => !p)}
-            aria-label={mobileOpen ? "Close menu" : "Open menu"}
-            aria-expanded={mobileOpen}
-            className="show-mobile"
-            style={{
-              display: "none",
-              background: "transparent",
-              border: "1px solid var(--border-medium)",
-              borderRadius: "var(--radius-sm)",
-              width: 36, height: 36,
-              alignItems: "center", justifyContent: "center",
-              cursor: "pointer", color: "var(--text-secondary)",
-              padding: 0, flexShrink: 0,
-            }}>
-            <svg width="18" height="18" viewBox="0 0 18 18" fill="none"
-              stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-              {mobileOpen ? (
-                <><line x1="3" y1="3" x2="15" y2="15" /><line x1="15" y1="3" x2="3" y2="15" /></>
-              ) : (
-                <><line x1="2" y1="5" x2="16" y2="5" /><line x1="2" y1="9" x2="16" y2="9" /><line x1="2" y1="13" x2="16" y2="13" /></>
-              )}
-            </svg>
-          </button>
+    <header
+      ref={navRef}
+      className={`ez-nav-header${scrolled ? " is-scrolled" : ""}`}
+    >
+      {/* Utility strip — trust + quick links */}
+      <div className="ez-nav-utility hide-mobile">
+        <div className="container ez-nav-utility-inner">
+          <span className="ez-nav-trust">
+            <span className="ez-nav-trust-dot" aria-hidden />
+            {t("nav.trust", { count: TOOL_COUNT })}
+          </span>
+          <div className="ez-nav-utility-links">
+            <a href="/about">{t("nav.about")}</a>
+            <a href="/contact">{t("nav.contact")}</a>
+            <a
+              href="https://care.ezseva.com"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {t("nav.care")}
+            </a>
+          </div>
         </div>
       </div>
 
-      {/* ── Mobile Accordion ── */}
+      {/* Main bar */}
+      <div className="ez-nav-main">
+        <div className="container ez-nav-inner">
+          <a
+            href="/"
+            onClick={closeAll}
+            aria-label="EzSeva — Home"
+            style={{ textDecoration: "none", flexShrink: 0 }}
+          >
+            <Logo size="nav" />
+          </a>
+
+          <nav
+            aria-label="Primary navigation"
+            className="ez-nav-center hide-mobile"
+          >
+            <div className="ez-nav-pills">
+              {NAV_ITEMS.map((item) => {
+                const label =
+                  item.cat === "Image"
+                    ? t("nav.imageTools")
+                    : item.cat === "PDF"
+                    ? t("nav.pdfTools")
+                    : item.label;
+                return (
+                <div
+                  key={item.label}
+                  className={`ez-nav-dropdown-wrap${openDrop === item.label ? " is-open" : ""}`}
+                  onMouseEnter={() => handleMouseEnter(item.label)}
+                  onMouseLeave={handleMouseLeave}
+                >
+                  <button
+                    type="button"
+                    className={`ez-nav-link${openDrop === item.label ? " is-open" : ""}`}
+                    aria-haspopup="true"
+                    aria-expanded={openDrop === item.label}
+                    onClick={() => toggleDrop(item.label)}
+                  >
+                    <span className="ez-nav-link-icon">{item.icon}</span>
+                    {label}
+                    <ChevronDown className="ez-nav-link-chevron" />
+                  </button>
+                  <MegaDropdown
+                    catConfig={item}
+                    isOpen={openDrop === item.label}
+                  />
+                </div>
+              );})}
+
+              <a
+                href="/typing-test"
+                className={`ez-nav-link${isActive("/typing-test") ? " is-active" : ""}`}
+              >
+                <span className="ez-nav-link-icon">⌨️</span>
+                {t("nav.typingTest")}
+              </a>
+
+              <a
+                href="/guide"
+                className={`ez-nav-link${isActive("/guide") ? " is-active" : ""}`}
+              >
+                {t("nav.guide")}
+              </a>
+            </div>
+          </nav>
+
+          <div className="ez-nav-actions">
+            <div
+              className="ez-nav-lang hide-mobile"
+              role="group"
+              aria-label={t("lang.toggle")}
+              style={{ display: "flex", gap: 4, marginRight: 4 }}
+            >
+              {locales.map((loc) => (
+                <button
+                  key={loc.id}
+                  type="button"
+                  onClick={() => setLang(loc.id)}
+                  aria-pressed={lang === loc.id}
+                  style={{
+                    padding: "5px 10px",
+                    borderRadius: "var(--radius-sm)",
+                    border: `1.5px solid ${lang === loc.id ? "var(--brand)" : "var(--border-light)"}`,
+                    background: lang === loc.id ? "var(--brand-light)" : "#fff",
+                    fontSize: "11px",
+                    fontWeight: 800,
+                    cursor: "pointer",
+                    fontFamily: "var(--font)",
+                    color: lang === loc.id ? "var(--brand)" : "var(--text-muted)",
+                  }}
+                >
+                  {loc.short}
+                </button>
+              ))}
+            </div>
+
+            <a
+              href="/#tools"
+              className="ez-nav-search hide-mobile"
+              aria-label={t("nav.browseTools")}
+              title={t("nav.browseTools")}
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 16 16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                aria-hidden
+              >
+                <circle cx="6.5" cy="6.5" r="5" />
+                <line x1="10.5" y1="10.5" x2="14" y2="14" />
+              </svg>
+            </a>
+
+            <a href="/photo-joiner" className="ez-nav-cta hide-mobile">
+              Start free →
+            </a>
+
+            <button
+              type="button"
+              onClick={() => setMobileOpen((p) => !p)}
+              aria-label={mobileOpen ? "Close menu" : "Open menu"}
+              aria-expanded={mobileOpen}
+              className="ez-nav-hamburger show-mobile"
+            >
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 18 18"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                aria-hidden
+              >
+                {mobileOpen ? (
+                  <>
+                    <line x1="3" y1="3" x2="15" y2="15" />
+                    <line x1="15" y1="3" x2="3" y2="15" />
+                  </>
+                ) : (
+                  <>
+                    <line x1="2" y1="5" x2="16" y2="5" />
+                    <line x1="2" y1="9" x2="16" y2="9" />
+                    <line x1="2" y1="13" x2="16" y2="13" />
+                  </>
+                )}
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile menu */}
       {mobileOpen && (
-        <div id="mobile-menu" role="navigation" aria-label="Mobile navigation"
-          style={{ borderTop: "1px solid var(--border-light)", background: "#fff", padding: "10px 16px 16px" }}>
+        <div
+          id="mobile-menu"
+          role="navigation"
+          aria-label="Mobile navigation"
+          className="ez-nav-mobile"
+        >
+          <div className="ez-nav-mobile-trust">
+            <span className="ez-nav-trust-dot" aria-hidden />
+            {t("nav.trust", { count: TOOL_COUNT })}
+          </div>
+          <div style={{ display: "flex", gap: 8, padding: "8px 16px 12px" }}>
+            {locales.map((loc) => (
+              <button
+                key={loc.id}
+                type="button"
+                onClick={() => setLang(loc.id)}
+                aria-pressed={lang === loc.id}
+                style={{
+                  flex: 1,
+                  padding: "8px",
+                  borderRadius: "var(--radius-sm)",
+                  border: `1.5px solid ${lang === loc.id ? "var(--brand)" : "var(--border-light)"}`,
+                  background: lang === loc.id ? "var(--brand-light)" : "#fff",
+                  fontWeight: 800,
+                  fontSize: 12,
+                }}
+              >
+                {loc.label}
+              </button>
+            ))}
+          </div>
+
           {NAV_ITEMS.map((item) => {
             const isExpanded = mobileExp === item.label;
             const tools = TOOLS.filter((t) => t.cat === item.cat);
             return (
-              <div key={item.label} style={{ marginBottom: 2 }}>
+              <div key={item.label}>
                 <button
-                  onClick={() => setMobileExp(isExpanded ? null : item.label)}
+                  type="button"
+                  onClick={() =>
+                    setMobileExp(isExpanded ? null : item.label)
+                  }
                   aria-expanded={isExpanded}
-                  style={{
-                    width: "100%", display: "flex", alignItems: "center", gap: 8,
-                    padding: "11px 12px", borderRadius: "var(--radius-md)", border: "none",
-                    background: isExpanded ? "var(--brand-light)" : "transparent",
-                    color: isExpanded ? "var(--brand)" : "var(--text-secondary)",
-                    fontSize: 14, fontWeight: 600, cursor: "pointer",
-                    fontFamily: "var(--font)", textAlign: "left",
-                  }}>
+                  className={`ez-nav-mobile-item${isExpanded ? " is-expanded" : ""}`}
+                >
                   <span>{item.icon}</span>
                   <span style={{ flex: 1 }}>{item.label}</span>
-                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none"
-                    stroke="currentColor" strokeWidth="2" strokeLinecap="round"
-                    style={{ transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }}>
-                    <polyline points="2 4 6 8 10 4" />
-                  </svg>
+                  <ChevronDown
+                    className="ez-nav-link-chevron"
+                    style={{
+                      transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)",
+                    }}
+                  />
                 </button>
                 {isExpanded && (
-                  <div style={{ paddingLeft: 12, paddingBottom: 4 }}>
+                  <div className="ez-nav-mobile-sub">
                     {tools.map((tool) => (
-                      <a key={tool.href} href={tool.href} onClick={closeAll}
-                        style={{
-                          display: "flex", alignItems: "center", gap: 10,
-                          padding: "9px 10px", borderRadius: "var(--radius-sm)",
-                          textDecoration: "none", transition: "background 0.12s",
-                        }}>
+                      <a
+                        key={tool.href}
+                        href={tool.href}
+                        onClick={closeAll}
+                        className="ez-nav-mobile-tool"
+                      >
                         <span style={{ fontSize: 18 }}>{tool.icon}</span>
                         <div>
-                          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)" }}>{tool.title}</div>
-                          <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{tool.desc}</div>
+                          <div
+                            style={{
+                              fontSize: 13,
+                              fontWeight: 700,
+                              color: "var(--text-primary)",
+                            }}
+                          >
+                            {tool.title}
+                          </div>
+                          <div
+                            style={{
+                              fontSize: 11,
+                              color: "var(--text-muted)",
+                            }}
+                          >
+                            {tool.desc}
+                          </div>
                         </div>
                       </a>
                     ))}
@@ -396,31 +480,24 @@ export default function Navbar() {
             );
           })}
 
-          <a href="/typing-test" onClick={closeAll}
-            style={{
-              display: "block", padding: "11px 12px",
-              borderRadius: "var(--radius-md)", fontSize: 14, fontWeight: 600,
-              color: "var(--text-secondary)", textDecoration: "none", marginTop: 2,
-            }}>
+          <a
+            href="/typing-test"
+            onClick={closeAll}
+            className={`ez-nav-mobile-item${isActive("/typing-test") ? " is-expanded" : ""}`}
+          >
             ⌨️ Typing Test
           </a>
-
-          <a href="/guide" onClick={closeAll}
-            style={{
-              display: "block", padding: "11px 12px",
-              borderRadius: "var(--radius-md)", fontSize: 14, fontWeight: 600,
-              color: "var(--text-secondary)", textDecoration: "none", marginTop: 2,
-            }}>
+          <a
+            href="/guide"
+            onClick={closeAll}
+            className={`ez-nav-mobile-item${isActive("/guide") ? " is-expanded" : ""}`}
+          >
             📖 How to Use
           </a>
 
-          {/* PREMIUM BUTTON — uncomment when premium plan is live
-          <div style={{ height: 1, background: "var(--border-light)", margin: "10px 0" }} />
-          <a href="/premium" className="btn-cta" onClick={closeAll}
-            style={{ display: "block", textAlign: "center", fontSize: 14, padding: 12 }}>
-            ⚡ Go Premium — ₹49/mo
+          <a href="/photo-joiner" onClick={closeAll} className="ez-nav-mobile-cta">
+            Start free →
           </a>
-          */}
         </div>
       )}
     </header>

@@ -44,8 +44,8 @@
 import { useState, useRef, useCallback } from "react";
 import { PDFDocument } from "pdf-lib";
 import JSZip from "jszip";
-import Navbar from "../components/Navbar";
-import Footer from "../components/Footer";
+import ToolPageShell from "../components/tools/ToolPageShell";
+import { isPdfFile } from "../lib/file-validation";
 
 /* ─── Types ──────────────────────────────────────────────────── */
 
@@ -68,11 +68,14 @@ function fmtSize(bytes: number): string {
   return `${(kb / 1024).toFixed(2)} MB`;
 }
 
-function parsePageRange(rangeStr: string, pageCount: number): number[] | null {
+/** Each comma-separated segment → separate output PDF (e.g. "1-3, 5, 7-9") */
+function parsePageRangeGroups(rangeStr: string, pageCount: number): number[][] | null {
   if (!rangeStr.trim()) return null;
   const parts = rangeStr.split(",").map((p) => p.trim()).filter(Boolean);
-  const indices = new Set<number>();
+  const groups: number[][] = [];
+
   for (const part of parts) {
+    const indices = new Set<number>();
     if (part.includes("-")) {
       const [a, b] = part.split("-").map((s) => parseInt(s.trim(), 10));
       if (isNaN(a) || isNaN(b) || a < 1 || b < 1 || a > b || b > pageCount) return null;
@@ -82,8 +85,11 @@ function parsePageRange(rangeStr: string, pageCount: number): number[] | null {
       if (isNaN(n) || n < 1 || n > pageCount) return null;
       indices.add(n - 1);
     }
+    if (indices.size > 0) {
+      groups.push(Array.from(indices).sort((a, b) => a - b));
+    }
   }
-  return indices.size === 0 ? null : Array.from(indices).sort((a, b) => a - b);
+  return groups.length === 0 ? null : groups;
 }
 
 async function readFileAsArrayBuffer(file: File): Promise<ArrayBuffer> {
@@ -128,11 +134,9 @@ export default function PdfSplitPage() {
 
   const MAX_SIZE = 50 * 1024 * 1024;
 
-  /* ── Load file — FIX: MIME && extension (AND, not OR) ── */
+  /* ── Load file — MIME or extension (empty MIME on some browsers) ── */
   const loadFile = useCallback(async (f: File) => {
-    const isValidMime = f.type === "application/pdf";
-    const isValidExt  = f.name.toLowerCase().endsWith(".pdf");
-    if (!isValidMime || !isValidExt) {
+    if (!isPdfFile(f)) {
       setMetaError("Please select a valid PDF file (.pdf).");
       return;
     }
@@ -179,7 +183,7 @@ export default function PdfSplitPage() {
     if (!file || pageCount === 0) return "Please upload a PDF first.";
     if (splitMode === "range") {
       if (!rangeInput.trim()) return "Please enter a page range (e.g. 1-3, 5).";
-      const parsed = parsePageRange(rangeInput, pageCount);
+      const parsed = parsePageRangeGroups(rangeInput, pageCount);
       if (!parsed) return `Invalid page range. Pages must be between 1 and ${pageCount}.`;
     }
     if (splitMode === "chunk") {
@@ -216,17 +220,16 @@ export default function PdfSplitPage() {
           );
         }
       } else {
-        // range mode — single group
-        const parsed = parsePageRange(rangeInput, pageCount)!;
-        groups = [parsed];
+        const parsed = parsePageRangeGroups(rangeInput, pageCount)!;
+        groups = parsed;
       }
 
+      const srcDoc = await PDFDocument.load(srcBytes, { ignoreEncryption: true });
       const total = groups.length;
       for (let g = 0; g < total; g++) {
         setProgress(Math.round((g / total) * 90));
         setProgressMsg(`Creating part ${g + 1} of ${total}…`);
 
-        const srcDoc  = await PDFDocument.load(srcBytes, { ignoreEncryption: true });
         const newDoc  = await PDFDocument.create();
         const pages   = await newDoc.copyPages(srcDoc, groups[g]);
         pages.forEach((p) => newDoc.addPage(p));
@@ -237,6 +240,10 @@ export default function PdfSplitPage() {
             ? `${prefix}_pages.pdf`
             : splitMode === "every"
             ? `${prefix}_page_${groups[g][0] + 1}.pdf`
+            : splitMode === "range" && groups[g].length === 1
+            ? `${prefix}_page_${groups[g][0] + 1}.pdf`
+            : splitMode === "range"
+            ? `${prefix}_pages_${groups[g][0] + 1}-${groups[g][groups[g].length - 1] + 1}.pdf`
             : `${prefix}_part_${g + 1}.pdf`;
 
         results.push({
@@ -323,10 +330,13 @@ export default function PdfSplitPage() {
   /* ── Previews ── */
   const rangePreview = (() => {
     if (splitMode !== "range" || !rangeInput.trim() || pageCount === 0) return null;
-    const p = parsePageRange(rangeInput, pageCount);
-    return p
-      ? `✓ ${p.length} page${p.length !== 1 ? "s" : ""} selected`
-      : "Invalid range";
+    const groups = parsePageRangeGroups(rangeInput, pageCount);
+    if (!groups) return "Invalid range";
+    const pages = groups.reduce((n, g) => n + g.length, 0);
+    const pdfCount = groups.length;
+    return pdfCount > 1
+      ? `✓ ${pdfCount} PDFs · ${pages} page${pages !== 1 ? "s" : ""} total`
+      : `✓ ${pages} page${pages !== 1 ? "s" : ""} selected`;
   })();
 
   const chunkPreview = (() => {
@@ -337,53 +347,7 @@ export default function PdfSplitPage() {
 
   /* ── Render ── */
   return (
-    <>
-      <Navbar />
-      <main style={{ background: "var(--bg-subtle)", minHeight: "100vh", paddingBottom: "56px" }}>
-
-        {/* ── Top Ad ── */}
-        <div aria-hidden="true" style={{ background: "var(--bg-subtle)" }}>
-          <ins className="adsbygoogle" style={{ display: "block", minHeight: "90px" }}
-            data-ad-format="auto" data-full-width-responsive="true" />
-        </div>
-
-        <div className="container-sm" style={{ padding: "32px 20px 0" }}>
-
-          {/* ══ PAGE HEADER ══ */}
-          <div style={{ textAlign: "center", marginBottom: "28px" }}>
-            <div style={{ display: "inline-flex", alignItems: "center", gap: "7px", background: "var(--brand-light)", border: "1px solid var(--brand-border)", borderRadius: "var(--radius-sm)", padding: "4px 12px", marginBottom: "14px" }}>
-              <span style={{ fontSize: "9px", fontWeight: 800, color: "var(--brand)", letterSpacing: "1.5px", textTransform: "uppercase" }}>
-                ✂️ Free PDF Tool
-              </span>
-            </div>
-            <h1 style={{ fontSize: "clamp(24px, 4vw, 34px)", fontWeight: 900, letterSpacing: "-0.8px", color: "var(--text-primary)", lineHeight: 1.15, marginBottom: "10px" }}>
-              PDF Split — Extract Pages Free
-            </h1>
-            <p style={{ fontSize: "14.5px", color: "var(--text-muted)", maxWidth: "460px", margin: "0 auto 16px", lineHeight: 1.65 }}>
-              Split a PDF by page range, fixed chunks, or one page at a time.{" "}
-              <strong style={{ color: "var(--brand)" }}>Your files never leave your device.</strong>
-            </p>
-            <div style={{ display: "flex", gap: "8px", justifyContent: "center", flexWrap: "wrap", marginBottom: "18px" }}>
-              {[
-                { icon: "🔒", text: "100% Private" },
-                { icon: "⚡", text: "Instant" },
-                { icon: "📱", text: "Mobile Ready" },
-                { icon: "₹",  text: "Free Forever" },
-              ].map((t) => (
-                <span key={t.text} style={{ fontSize: "11.5px", padding: "4px 11px", background: "var(--brand-light)", color: "var(--brand)", borderRadius: "99px", fontWeight: 700, border: "1px solid var(--brand-mid)" }}>
-                  {t.icon} {t.text}
-                </span>
-              ))}
-            </div>
-            <a
-              href="/"
-              style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "12.5px", fontWeight: 700, color: "var(--text-muted)", textDecoration: "none", padding: "7px 16px", borderRadius: "99px", border: "1.5px solid var(--border-light)", background: "#fff", boxShadow: "0 1px 4px rgba(0,0,0,0.06)", transition: "all 0.15s ease" }}
-              onMouseEnter={(e) => { const el = e.currentTarget as HTMLElement; el.style.borderColor = "var(--brand-border)"; el.style.color = "var(--brand)"; el.style.background = "var(--brand-light)"; }}
-              onMouseLeave={(e) => { const el = e.currentTarget as HTMLElement; el.style.borderColor = "var(--border-light)"; el.style.color = "var(--text-muted)"; el.style.background = "#fff"; }}
-            >
-              ← All Tools
-            </a>
-          </div>
+    <ToolPageShell toolHref="/pdf-split">
 
           {/* ── Errors ── */}
           {(errorMsg || metaError) && (
@@ -395,7 +359,7 @@ export default function PdfSplitPage() {
           {/* ══ UPLOAD ZONE ══ */}
           {!file && (
             <div
-              className="upload-zone"
+              className="ez-tool-workspace upload-zone"
               onDragOver={onZoneDragOver}
               onDragLeave={onZoneDragLeave}
               onDrop={onZoneDrop}
@@ -688,42 +652,7 @@ export default function PdfSplitPage() {
             ))}
           </section>
 
-          {/* ══ RELATED TOOLS ══ */}
-          <section aria-label="More free tools" style={{ marginBottom: "8px" }}>
-            <h2 style={{ fontSize: "15px", fontWeight: 800, marginBottom: "12px", color: "var(--text-secondary)" }}>
-              🔗 More Free Tools
-            </h2>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(145px, 1fr))", gap: "10px" }}>
-              {[
-                { icon: "🔗", title: "PDF Merge",       href: "/pdf-merge",    desc: "Combine PDFs into one" },
-                { icon: "📦", title: "PDF Compress",    href: "/pdf-compress", desc: "Reduce PDF size" },
-                { icon: "🔒", title: "PDF Protect",     href: "/pdf-protect",  desc: "Password protect PDF" },
-                { icon: "📄", title: "Image to PDF",    href: "/image-to-pdf", desc: "Convert images to PDF" },
-                { icon: "🖼️", title: "Image Resize",   href: "/image-resize", desc: "Resize for govt exams" },
-                { icon: "🪪", title: "Photo+Signature", href: "/photo-joiner", desc: "Merge for govt forms" },
-                { icon: "🎨", title: "Image Crop",      href: "/image-crop",   desc: "Crop photo to any size" },
-                { icon:"⌨️",title:"Typing Test",     href:"/typing-test",  desc:"CPCT, SSC practice"    },
-              ].map((t) => (
-                <a key={t.href} href={t.href} className="tool-card" style={{ padding: "14px" }}>
-                  <div className="tool-card-icon" style={{ marginBottom: "7px" }}>{t.icon}</div>
-                  <div style={{ fontSize: "12px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "3px" }}>{t.title}</div>
-                  <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{t.desc}</div>
-                </a>
-              ))}
-            </div>
-          </section>
-
-        </div>
-
-        {/* ── Bottom Ad ── */}
-        <div aria-hidden="true">
-          <ins className="adsbygoogle" style={{ display: "block", minHeight: "90px" }}
-            data-ad-format="auto" data-full-width-responsive="true" />
-        </div>
-
-        <Footer />
-      </main>
-    </>
+    </ToolPageShell>
   );
 }
 

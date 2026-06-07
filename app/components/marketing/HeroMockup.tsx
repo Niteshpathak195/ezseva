@@ -70,7 +70,7 @@ export default function HeroMockup() {
                 style={{
                   height: 64,
                   borderRadius: 8,
-                  background: "linear-gradient(135deg,#E8FFFC,#B8F5EE)",
+                  background: "linear-gradient(135deg, var(--brand-light), var(--brand-mid))",
                   border: "1px dashed var(--brand-border)",
                   display: "flex",
                   alignItems: "center",

@@ -1,23 +1,20 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
-import Navbar from "../components/Navbar";
-import Footer from "../components/Footer";
-
-/* ─── Types ──────────────────────────────────────────────── */
-
-interface Preset {
-  id: string;
-  label: string;
-  subLabel: string;
-  badge?: string;
-  width: number;
-  height: number;
-  maxKB: number;
-  format: OutputFormat;
-}
-
-type OutputFormat = "jpeg" | "png" | "webp";
+import { useState, useCallback, useEffect } from "react";
+import JSZip from "jszip";
+import ToolPageShell from "../components/tools/ToolPageShell";
+import KBStatusBadge from "../components/tools/KBStatusBadge";
+import ToolWorkflowCTA from "../components/tools/ToolWorkflowCTA";
+import ImageCaptureUpload from "../components/tools/ImageCaptureUpload";
+import { RESIZE_PRESETS, type OutputFormat } from "../data/exam-presets";
+import { fmtKB, type FitMode } from "../lib/image-utils";
+import { isImageFile } from "../lib/file-validation";
+import { normalizeImageFile } from "../lib/heic-utils";
+import {
+  resizeImageFromSource,
+  resolveResizeTargets,
+  type ResizeOutput,
+} from "../lib/resize-processor";
 
 interface ProcessedResult {
   dataUrl: string;
@@ -25,124 +22,30 @@ interface ProcessedResult {
   width: number;
   height: number;
   format: OutputFormat;
+  maxKB: number;
 }
 
-/* ─── Researched Exam Presets ────────────────────────────── */
-
-const PRESETS: Preset[] = [
-  {
-    id: "ssc",
-    label: "SSC CGL / CHSL",
-    subLabel: "200×230 px · max 20 KB · JPEG",
-    badge: "HOT",
-    width: 200,
-    height: 230,
-    maxKB: 20,
-    format: "jpeg",
-  },
-  {
-    id: "rrb",
-    label: "Railway RRB / NTPC",
-    subLabel: "200×230 px · max 15 KB · JPEG",
-    badge: "HOT",
-    width: 200,
-    height: 230,
-    maxKB: 15,
-    format: "jpeg",
-  },
-  {
-    id: "ibps",
-    label: "IBPS PO / Clerk",
-    subLabel: "200×230 px · max 50 KB · JPEG",
-    badge: "",
-    width: 200,
-    height: 230,
-    maxKB: 50,
-    format: "jpeg",
-  },
-  {
-    id: "vyapam",
-    label: "VYAPAM / MP PEB",
-    subLabel: "200×230 px · max 30 KB · JPEG",
-    badge: "MP",
-    width: 200,
-    height: 230,
-    maxKB: 30,
-    format: "jpeg",
-  },
-  {
-    id: "mppolice",
-    label: "MP Police",
-    subLabel: "200×230 px · max 20 KB · JPEG",
-    badge: "MP",
-    width: 200,
-    height: 230,
-    maxKB: 20,
-    format: "jpeg",
-  },
-  {
-    id: "upsc",
-    label: "UPSC / IAS",
-    subLabel: "300×400 px · max 300 KB · JPEG",
-    badge: "",
-    width: 300,
-    height: 400,
-    maxKB: 300,
-    format: "jpeg",
-  },
-  {
-    id: "bpsc",
-    label: "Bihar PSC / BPSC",
-    subLabel: "140×160 px · max 20 KB · JPEG",
-    badge: "",
-    width: 140,
-    height: 160,
-    maxKB: 20,
-    format: "jpeg",
-  },
-  {
-    id: "neet",
-    label: "NEET / JEE / NTA",
-    subLabel: "413×531 px · max 100 KB · JPEG",
-    badge: "",
-    width: 413,
-    height: 531,
-    maxKB: 100,
-    format: "jpeg",
-  },
-  {
-    id: "passport",
-    label: "Passport / Visa",
-    subLabel: "600×600 px · max 50 KB · JPEG",
-    badge: "",
-    width: 600,
-    height: 600,
-    maxKB: 50,
-    format: "jpeg",
-  },
-  {
-    id: "custom",
-    label: "Custom Size",
-    subLabel: "Set your own dimensions",
-    badge: "",
-    width: 0,
-    height: 0,
-    maxKB: 0,
-    format: "jpeg",
-  },
-];
-
-/* ─── Utility ────────────────────────────────────────────── */
-
-function fmtKB(bytes: number): string {
-  const kb = bytes / 1024;
-  return kb >= 1000 ? `${(kb / 1024).toFixed(2)} MB` : `${kb.toFixed(1)} KB`;
+interface BatchItem {
+  id: string;
+  file: File;
+  previewSrc: string;
 }
 
-function estimateBase64KB(dataUrl: string, mime: string): number {
-  const prefix = `data:${mime};base64,`;
-  const base64Len = dataUrl.length - prefix.length;
-  return Math.ceil((base64Len * 3) / 4 / 1024);
+interface BatchResult {
+  id: string;
+  name: string;
+  blob: Blob;
+  sizeKB: number;
+  width: number;
+  height: number;
+  maxKB: number;
+}
+
+const PRESETS = RESIZE_PRESETS;
+const MAX_BATCH = 20;
+
+function uid() {
+  return Math.random().toString(36).slice(2, 9);
 }
 
 /* ─── Sub-components ─────────────────────────────────────── */
@@ -188,12 +91,12 @@ function StatChip({ label, value }: { label: string; value: string }) {
 /* ─── Main Component ─────────────────────────────────────── */
 
 export default function ImageResizePage() {
+  const [mode, setMode] = useState<"single" | "batch">("single");
+
   /* Upload */
   const [file, setFile]             = useState<File | null>(null);
   const [previewSrc, setPreviewSrc] = useState<string | null>(null);
   const [origDims, setOrigDims]     = useState<{ w: number; h: number } | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
-
   /* Settings */
   const [selectedPreset, setSelectedPreset] = useState<string>("ssc");
   const [customW, setCustomW]               = useState("800");
@@ -201,22 +104,41 @@ export default function ImageResizePage() {
   const [customKB, setCustomKB]             = useState("200");
   const [format, setFormat]                 = useState<OutputFormat>("jpeg");
   const [quality, setQuality]               = useState(85);
+  const [fitMode, setFitMode]               = useState<FitMode>("cover");
 
   /* Output */
   const [result, setResult]         = useState<ProcessedResult | null>(null);
   const [processing, setProcessing] = useState(false);
   const [progress, setProgress]     = useState(0);
   const [error, setError]           = useState<string | null>(null);
+  const [converting, setConverting] = useState(false);
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [batchItems, setBatchItems]     = useState<BatchItem[]>([]);
+  const [batchResults, setBatchResults] = useState<BatchResult[]>([]);
 
   const activePreset = PRESETS.find((p) => p.id === selectedPreset)!;
 
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search).get("preset");
+    if (p && PRESETS.some((x) => x.id === p)) setSelectedPreset(p);
+  }, []);
+
+  const getTargets = useCallback(() => {
+    const t = resolveResizeTargets(selectedPreset, PRESETS, {
+      w: customW,
+      h: customH,
+      kb: customKB,
+      format,
+    });
+    if (selectedPreset !== "custom") setFormat(t.outputFormat);
+    return t;
+  }, [selectedPreset, customW, customH, customKB, format]);
+
   /* ── File handler ─────────────────────────────────────── */
 
-  const handleFile = useCallback((f: File) => {
-    if (!f.type.startsWith("image/")) {
-      setError("Only image files allowed (JPG, PNG, WebP, GIF).");
+  const handleFile = useCallback(async (f: File) => {
+    if (!isImageFile(f)) {
+      setError("Only image files allowed (JPG, PNG, WebP, GIF, HEIC).");
       return;
     }
     if (f.size > 20 * 1024 * 1024) {
@@ -225,27 +147,63 @@ export default function ImageResizePage() {
     }
     setError(null);
     setResult(null);
-    setFile(f);
-
-    const url = URL.createObjectURL(f);
-    setPreviewSrc(url);
-
-    const img = new Image();
-    img.onload = () => setOrigDims({ w: img.naturalWidth, h: img.naturalHeight });
-    img.src = url;
+    setConverting(true);
+    try {
+      const normalized = await normalizeImageFile(f);
+      setFile(normalized);
+      const url = URL.createObjectURL(normalized);
+      setPreviewSrc(url);
+      const img = new Image();
+      img.onload = () => setOrigDims({ w: img.naturalWidth, h: img.naturalHeight });
+      img.src = url;
+    } catch {
+      setError("Could not read image. HEIC files from iPhone are supported — please try again.");
+    } finally {
+      setConverting(false);
+    }
   }, []);
 
-  /* ── Drag & drop ──────────────────────────────────────── */
+  const handleBatchFiles = useCallback(async (files: FileList | File[]) => {
+    const arr = Array.from(files);
+    const room = MAX_BATCH - batchItems.length;
+    if (room <= 0) {
+      setError(`Maximum ${MAX_BATCH} images in batch mode.`);
+      return;
+    }
+    setError(null);
+    setBatchResults([]);
+    setConverting(true);
+    const added: BatchItem[] = [];
+    try {
+      for (const f of arr.slice(0, room)) {
+        if (!isImageFile(f) || f.size > 20 * 1024 * 1024) continue;
+        const normalized = await normalizeImageFile(f);
+        added.push({
+          id: uid(),
+          file: normalized,
+          previewSrc: URL.createObjectURL(normalized),
+        });
+      }
+      if (added.length === 0) {
+        setError("No valid images added. Use JPG, PNG, WebP, GIF, or HEIC up to 20 MB each.");
+        return;
+      }
+      setBatchItems((prev) => [...prev, ...added]);
+    } catch {
+      setError("Failed to load one or more images.");
+    } finally {
+      setConverting(false);
+    }
+  }, [batchItems.length]);
 
-  const onDrop = useCallback(
-    (e: React.DragEvent) => {
-      e.preventDefault();
-      setIsDragging(false);
-      const f = e.dataTransfer.files[0];
-      if (f) handleFile(f);
-    },
-    [handleFile]
-  );
+  const outputFromResize = (out: ResizeOutput): ProcessedResult => ({
+    dataUrl: out.dataUrl,
+    sizeKB: out.sizeKB,
+    width: out.width,
+    height: out.height,
+    format: out.format,
+    maxKB: out.maxKB,
+  });
 
   /* ── Canvas processing ─────────────────────────────────── */
 
@@ -258,96 +216,18 @@ export default function ImageResizePage() {
     setResult(null);
 
     try {
-      let targetW: number;
-      let targetH: number;
-      let targetKB: number;
-      let outputFormat: OutputFormat;
-
-      if (selectedPreset === "custom") {
-        targetW      = Math.max(1, Math.min(5000, parseInt(customW) || 800));
-        targetH      = Math.max(1, Math.min(5000, parseInt(customH) || 600));
-        targetKB     = Math.max(1, Math.min(10000, parseInt(customKB) || 200));
-        outputFormat = format;
-      } else {
-        targetW      = activePreset.width;
-        targetH      = activePreset.height;
-        targetKB     = activePreset.maxKB;
-        outputFormat = activePreset.format;
-        setFormat(activePreset.format);
-      }
-
-      setProgress(25);
-
-      const img = await new Promise<HTMLImageElement>((res, rej) => {
-        const i = new Image();
-        i.onload  = () => res(i);
-        i.onerror = () => rej(new Error("Image failed to load. Try a different file."));
-        i.src = previewSrc;
+      const { targetW, targetH, targetKB, outputFormat } = getTargets();
+      setProgress(40);
+      const out = await resizeImageFromSource(previewSrc, {
+        targetW,
+        targetH,
+        targetKB,
+        outputFormat,
+        quality,
+        fitMode,
       });
-
-      setProgress(50);
-
-      const canvas    = document.createElement("canvas");
-      canvas.width    = targetW;
-      canvas.height   = targetH;
-      const ctx       = canvas.getContext("2d")!;
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = "high";
-
-      if (outputFormat === "jpeg") {
-        ctx.fillStyle = "#ffffff";
-        ctx.fillRect(0, 0, targetW, targetH);
-      }
-
-      ctx.drawImage(img, 0, 0, targetW, targetH);
-      setProgress(70);
-
-      const mimeMap: Record<OutputFormat, string> = {
-        jpeg: "image/jpeg",
-        png:  "image/png",
-        webp: "image/webp",
-      };
-      const mime = mimeMap[outputFormat];
-
-      let dataUrl: string;
-
-      if (outputFormat === "png") {
-        dataUrl = canvas.toDataURL(mime);
-      } else {
-        let lo = 0.05, hi = 1.0;
-        dataUrl = canvas.toDataURL(mime, quality / 100);
-
-        if (targetKB > 0) {
-          for (let i = 0; i < 14; i++) {
-            const mid  = (lo + hi) / 2;
-            const test = canvas.toDataURL(mime, mid);
-            const kb   = estimateBase64KB(test, mime);
-
-            if (kb <= targetKB) {
-              lo      = mid;
-              dataUrl = test;
-              if (targetKB - kb < 0.5) break;
-            } else {
-              hi = mid;
-            }
-          }
-          dataUrl = canvas.toDataURL(mime, lo);
-        }
-      }
-
-      setProgress(90);
-
-      const finalKB = estimateBase64KB(dataUrl, mime);
-
-      setResult({
-        dataUrl,
-        sizeKB:  finalKB,
-        width:   targetW,
-        height:  targetH,
-        format:  outputFormat,
-      });
-
       setProgress(100);
+      setResult(outputFromResize(out));
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Something went wrong. Please try again.";
       setError(msg);
@@ -355,7 +235,66 @@ export default function ImageResizePage() {
       setProcessing(false);
       setTimeout(() => setProgress(0), 800);
     }
-  }, [file, previewSrc, selectedPreset, customW, customH, customKB, format, quality, activePreset]);
+  }, [file, previewSrc, getTargets, quality, fitMode]);
+
+  const processBatch = useCallback(async () => {
+    if (batchItems.length === 0) return;
+    setProcessing(true);
+    setProgress(5);
+    setError(null);
+    setBatchResults([]);
+
+    try {
+      const { targetW, targetH, targetKB, outputFormat } = getTargets();
+      const results: BatchResult[] = [];
+
+      for (let i = 0; i < batchItems.length; i++) {
+        const item = batchItems[i];
+        setProgress(Math.round(((i + 1) / batchItems.length) * 95));
+        const out = await resizeImageFromSource(item.previewSrc, {
+          targetW,
+          targetH,
+          targetKB,
+          outputFormat,
+          quality,
+          fitMode,
+        });
+        const ext = outputFormat === "jpeg" ? "jpg" : outputFormat;
+        const base = item.file.name.replace(/\.[^.]+$/, "");
+        results.push({
+          id: item.id,
+          name: `${base}_${targetW}x${targetH}.${ext}`,
+          blob: out.blob,
+          sizeKB: out.sizeKB,
+          width: out.width,
+          height: out.height,
+          maxKB: targetKB,
+        });
+      }
+
+      setBatchResults(results);
+      setProgress(100);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Batch processing failed.";
+      setError(msg);
+    } finally {
+      setProcessing(false);
+      setTimeout(() => setProgress(0), 800);
+    }
+  }, [batchItems, getTargets, quality, fitMode]);
+
+  const downloadBatchZip = useCallback(async () => {
+    if (batchResults.length === 0) return;
+    const zip = new JSZip();
+    batchResults.forEach((r) => zip.file(r.name, r.blob));
+    const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `ezseva_resized_${batchResults.length}_images.zip`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  }, [batchResults]);
 
   /* ── Download — FIX-2: Chrome PDF MIME safe pattern ──── */
 
@@ -383,9 +322,19 @@ export default function ImageResizePage() {
     setPreviewSrc(null);
     setOrigDims(null);
     setResult(null);
+    setBatchItems([]);
+    setBatchResults([]);
     setError(null);
     setProgress(0);
-    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const removeBatchItem = (id: string) => {
+    setBatchItems((prev) => {
+      const item = prev.find((x) => x.id === id);
+      if (item) URL.revokeObjectURL(item.previewSrc);
+      return prev.filter((x) => x.id !== id);
+    });
+    setBatchResults([]);
   };
 
   /* ── Cleanup blob URL on unmount / change ─────────────── */
@@ -397,82 +346,33 @@ export default function ImageResizePage() {
 
   /* ── Render ───────────────────────────────────────────── */
   return (
-    <>
-      <Navbar />
+    <ToolPageShell toolHref="/image-resize">
 
-      <main style={{ minHeight: "100vh", background: "var(--bg-subtle)", fontFamily: "var(--font)" }}>
-
-        {/* ── AdSense Auto Ad (Top) — flush under navbar ── */}
-        <div aria-hidden="true" style={{ background: "var(--bg-subtle)" }}>
-          <ins
-            className="adsbygoogle"
-            style={{ display: "block", minHeight: "90px" }}
-            data-ad-format="auto"
-            data-full-width-responsive="true"
-          />
-        </div>
-
-        <div className="container-sm" style={{ padding: "36px 20px 80px" }}>
-
-          {/* ── Page Header ── */}
-          <div style={{ textAlign: "center", marginBottom: "32px" }}>
-            <div style={{
-              display: "inline-flex", alignItems: "center", gap: "7px",
-              background: "var(--brand-light)", border: "1px solid var(--brand-border)",
-              borderRadius: "var(--radius-sm)", padding: "4px 12px", marginBottom: "14px",
-            }}>
-              <span style={{ fontSize: "9px", fontWeight: 800, color: "var(--brand)", letterSpacing: "1.5px", textTransform: "uppercase" }}>
-                🖼️ Free Image Tool
-              </span>
-            </div>
-
-            <h1 style={{
-              fontSize: "clamp(24px, 4vw, 34px)", fontWeight: 900,
-              letterSpacing: "-0.8px", color: "var(--text-primary)",
-              lineHeight: 1.15, marginBottom: "10px",
-            }}>
-              Image Resize — Free Online
-            </h1>
-
-            <p style={{
-              fontSize: "14.5px", color: "var(--text-muted)",
-              maxWidth: "460px", margin: "0 auto 16px", lineHeight: 1.65,
-            }}>
-              Resize photos for SSC, Railway, UPSC, VYAPAM, Passport & more.{" "}
-              <strong style={{ color: "var(--brand)" }}>Your file never leaves your device.</strong>
-            </p>
-
-            {/* ── Trust Pills ── */}
-            <div style={{
-              display: "flex", gap: "8px", justifyContent: "center",
-              flexWrap: "wrap", marginBottom: "18px",
-            }}>
-              {[
-                { icon: "🔒", text: "100% Private" },
-                { icon: "⚡", text: "Instant" },
-                { icon: "📱", text: "Mobile Ready" },
-                { icon: "₹", text: "Free Forever" },
-              ].map((t) => (
-                <span key={t.text} style={{
-                  fontSize: "11.5px", padding: "4px 11px",
-                  background: "var(--brand-light)", color: "var(--brand)",
-                  borderRadius: "99px", fontWeight: 700,
-                  border: "1px solid var(--brand-mid)",
-                }}>
-                  {t.icon} {t.text}
-                </span>
-              ))}
-            </div>
-
-            {/* ── FIX-14: ← All Tools button ── */}
-            <a
-              href="/"
-              style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "12.5px", fontWeight: 700, color: "var(--text-muted)", textDecoration: "none", padding: "7px 16px", borderRadius: "99px", border: "1.5px solid var(--border-light)", background: "#fff", boxShadow: "0 1px 4px rgba(0,0,0,0.06)", transition: "all 0.15s ease" }}
-              onMouseEnter={(e) => { const el = e.currentTarget as HTMLElement; el.style.borderColor = "var(--brand-border)"; el.style.color = "var(--brand)"; el.style.background = "var(--brand-light)"; }}
-              onMouseLeave={(e) => { const el = e.currentTarget as HTMLElement; el.style.borderColor = "var(--border-light)"; el.style.color = "var(--text-muted)"; el.style.background = "#fff"; }}
-            >
-              ← All Tools
-            </a>
+          {/* Mode toggle */}
+          <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+            {([
+              { key: "single" as const, label: "📷 Single photo" },
+              { key: "batch" as const, label: `📦 Batch (up to ${MAX_BATCH})` },
+            ]).map(({ key, label }) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => { setMode(key); setError(null); setResult(null); setBatchResults([]); }}
+                style={{
+                  flex: 1,
+                  padding: "10px 14px",
+                  borderRadius: "var(--radius-md)",
+                  border: `2px solid ${mode === key ? "var(--brand)" : "var(--border-light)"}`,
+                  background: mode === key ? "var(--brand-light)" : "#fff",
+                  cursor: "pointer",
+                  fontWeight: 700,
+                  fontSize: 13,
+                  fontFamily: "var(--font)",
+                }}
+              >
+                {label}
+              </button>
+            ))}
           </div>
 
           {/* ════════════════════════════════════════
@@ -480,51 +380,28 @@ export default function ImageResizePage() {
           ════════════════════════════════════════ */}
           <section
             aria-labelledby="step1-label"
-            style={{
-              background: "#fff", border: "1.5px solid var(--border-light)",
-              borderRadius: "var(--radius-xl)", padding: "26px",
-              marginBottom: "16px", boxShadow: "var(--shadow-sm)",
-            }}
+            className="ez-tool-workspace"
+            style={{ marginBottom: "16px" }}
           >
-            <StepLabel number="1" text="Upload Your Photo" />
+            <StepLabel number="1" text={mode === "batch" ? "Upload Photos (Batch)" : "Upload Your Photo"} />
 
-            {!file ? (
-              <div
-                role="button"
-                tabIndex={0}
-                aria-label="Upload image — click or drag and drop"
-                onDrop={onDrop}
-                onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-                onDragLeave={() => setIsDragging(false)}
-                onClick={() => fileInputRef.current?.click()}
-                onKeyDown={(e) => e.key === "Enter" && fileInputRef.current?.click()}
-                className="upload-zone"
-                style={{
-                  border: `2px dashed ${isDragging ? "var(--brand)" : "var(--brand-border)"}`,
-                  borderRadius: "var(--radius-lg)", padding: "44px 24px",
-                  textAlign: "center", cursor: "pointer",
-                  background: isDragging ? "var(--brand-light)" : "var(--bg-muted)",
-                  transition: "all 0.18s ease",
-                  outline: "none",
+            {mode === "single" && !file ? (
+              <ImageCaptureUpload
+                onFiles={(files) => {
+                  const f = files instanceof FileList ? files[0] : files[0];
+                  if (f) handleFile(f);
                 }}
-              >
-                <div style={{ fontSize: "38px", marginBottom: "10px" }}>📸</div>
-                <p style={{ fontSize: "15px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "5px" }}>
-                  Drag & drop or click to upload
-                </p>
-                <p style={{ fontSize: "12.5px", color: "var(--text-muted)" }}>
-                  JPG, PNG, WebP · max 20 MB
-                </p>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  aria-label="File input"
-                  style={{ display: "none" }}
-                  onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
-                />
-              </div>
-            ) : (
+                title="Take a photo or pick from gallery"
+                hint="JPG, PNG, WebP, HEIC · max 20 MB"
+                icon="📸"
+                disabled={converting}
+                style={{
+                  borderRadius: "var(--radius-lg)",
+                  padding: "44px 24px",
+                  background: "var(--bg-muted)",
+                }}
+              />
+            ) : mode === "single" && file ? (
               <div style={{
                 display: "flex", gap: "16px", alignItems: "center",
                 flexWrap: "wrap",
@@ -563,6 +440,40 @@ export default function ImageResizePage() {
                   ✕ Remove
                 </button>
               </div>
+            ) : (
+              <>
+                <ImageCaptureUpload
+                  multiple
+                  onFiles={handleBatchFiles}
+                  title={`Add up to ${MAX_BATCH} photos`}
+                  hint="Same preset applied to all · ZIP download"
+                  icon="📦"
+                  disabled={converting || batchItems.length >= MAX_BATCH}
+                  style={{
+                    borderRadius: "var(--radius-lg)",
+                    padding: "32px 20px",
+                    background: "var(--bg-muted)",
+                    marginBottom: batchItems.length ? 14 : 0,
+                  }}
+                />
+                {batchItems.length > 0 && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {batchItems.map((item) => (
+                      <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: 10, background: "var(--bg-muted)", borderRadius: "var(--radius-md)" }}>
+                        <img src={item.previewSrc} alt="" style={{ width: 40, height: 40, objectFit: "cover", borderRadius: 6 }} />
+                        <span style={{ flex: 1, fontSize: 12, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.file.name}</span>
+                        <button type="button" className="btn-secondary" style={{ fontSize: 11, padding: "4px 8px" }} onClick={() => removeBatchItem(item.id)}>✕</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+
+            {(converting || processing) && (
+              <p style={{ fontSize: 12, color: "var(--brand)", marginTop: 10, fontWeight: 600 }}>
+                {converting ? "Converting HEIC…" : "Processing…"}
+              </p>
             )}
 
             {/* ── FIX-15: Error via .alert-error ── */}
@@ -669,6 +580,40 @@ export default function ImageResizePage() {
               </div>
             )}
 
+            {/* Fit mode */}
+            <div style={{ marginBottom: "18px" }}>
+              <label style={{ display: "block", fontSize: "11.5px", fontWeight: 700, color: "var(--text-secondary)", marginBottom: "8px" }}>
+                Fit mode
+              </label>
+              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                {([
+                  { id: "cover" as FitMode, label: "Crop to fill", desc: "Best for exam photos" },
+                  { id: "contain" as FitMode, label: "Fit inside", desc: "No cropping" },
+                  { id: "stretch" as FitMode, label: "Stretch", desc: "May distort face" },
+                ]).map(({ id, label, desc }) => (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => setFitMode(id)}
+                    aria-pressed={fitMode === id}
+                    style={{
+                      flex: "1 1 120px",
+                      padding: "10px 12px",
+                      borderRadius: "var(--radius-md)",
+                      border: `2px solid ${fitMode === id ? "var(--brand)" : "var(--border-light)"}`,
+                      background: fitMode === id ? "var(--brand-light)" : "#fff",
+                      cursor: "pointer",
+                      textAlign: "left",
+                      fontFamily: "var(--font)",
+                    }}
+                  >
+                    <div style={{ fontSize: "12px", fontWeight: 700, color: fitMode === id ? "var(--brand)" : "var(--text-primary)" }}>{label}</div>
+                    <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: 2 }}>{desc}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* Format + Quality */}
             <div style={{ display: "flex", gap: "16px", flexWrap: "wrap", alignItems: "flex-end" }}>
               <div style={{ flex: 1, minWidth: "140px" }}>
@@ -738,18 +683,18 @@ export default function ImageResizePage() {
 
           {/* ── RESIZE BUTTON ── */}
           <button
-            onClick={processImage}
-            disabled={!file || processing}
-            className={file && !processing ? "btn-primary" : ""}
+            onClick={mode === "batch" ? processBatch : processImage}
+            disabled={(mode === "single" ? !file : batchItems.length === 0) || processing || converting}
+            className={(mode === "single" ? file : batchItems.length) && !processing ? "btn-primary" : ""}
             aria-label="Resize image"
             aria-busy={processing}
             style={{
               width: "100%", padding: "15px",
               fontSize: "15px", fontWeight: 800,
               borderRadius: "var(--radius-lg)",
-              cursor: !file || processing ? "not-allowed" : "pointer",
-              background: !file || processing ? "var(--border-light)" : undefined,
-              color: !file || processing ? "var(--text-hint)" : undefined,
+              cursor: (mode === "single" ? !file : !batchItems.length) || processing ? "not-allowed" : "pointer",
+              background: (mode === "single" ? !file : !batchItems.length) || processing ? "var(--border-light)" : undefined,
+              color: (mode === "single" ? !file : !batchItems.length) || processing ? "var(--text-hint)" : undefined,
               border: "none", transition: "all 0.2s",
               display: "flex", alignItems: "center", justifyContent: "center", gap: "10px",
               marginBottom: "20px",
@@ -760,15 +705,34 @@ export default function ImageResizePage() {
                 <span className="spinner" style={{ width: "16px", height: "16px", borderWidth: "2px" }} />
                 Processing…
               </>
+            ) : mode === "batch" ? (
+              `📦 Resize ${batchItems.length} Image${batchItems.length !== 1 ? "s" : ""} — Free`
             ) : (
               "🖼️ Resize Image — Free"
             )}
           </button>
 
+          {batchResults.length > 0 && (
+            <section style={{ background: "#fff", border: "2px solid var(--brand-border)", borderRadius: "var(--radius-xl)", padding: 22, marginBottom: 20 }}>
+              <h2 style={{ fontSize: 16, fontWeight: 800, marginBottom: 14 }}>Batch results ({batchResults.length})</h2>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 }}>
+                {batchResults.map((r) => (
+                  <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: 10, background: "var(--bg-muted)", borderRadius: "var(--radius-md)", flexWrap: "wrap" }}>
+                    <span style={{ flex: 1, fontSize: 12, fontWeight: 700 }}>{r.name}</span>
+                    <KBStatusBadge sizeKB={r.sizeKB} maxKB={r.maxKB} />
+                  </div>
+                ))}
+              </div>
+              <button type="button" className="btn-primary" onClick={downloadBatchZip} style={{ width: "100%", padding: 12 }}>
+                📦 Download All as ZIP
+              </button>
+            </section>
+          )}
+
           {/* ════════════════════════════════════════
-              RESULT
+              RESULT (single)
           ════════════════════════════════════════ */}
-          {result && (
+          {mode === "single" && result && (
             <section
               aria-label="Resized image result"
               style={{
@@ -826,11 +790,13 @@ export default function ImageResizePage() {
               </div>
 
               {/* Stats row */}
-              <div style={{ display: "flex", gap: "10px", marginBottom: "18px", flexWrap: "wrap" }}>
+              <div style={{ display: "flex", gap: "10px", marginBottom: "12px", flexWrap: "wrap" }}>
                 <StatChip label="File Size"  value={`${result.sizeKB} KB`} />
                 <StatChip label="Dimensions" value={`${result.width}×${result.height}`} />
                 <StatChip label="Format"     value={result.format.toUpperCase()} />
               </div>
+
+              <KBStatusBadge sizeKB={result.sizeKB} maxKB={result.maxKB} className="ez-kb-badge--block" />
 
               {/* Size reduction % */}
               {file && (
@@ -1021,52 +987,15 @@ export default function ImageResizePage() {
             ))}
           </section>
 
-          {/* ── Related Tools (8 cards) ── */}
-          <section aria-label="Related tools">
-            <h2 style={{ fontSize: "15px", fontWeight: 800, marginBottom: "12px", color: "var(--text-secondary)" }}>
-              🔗 Related Tools
-            </h2>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: "10px" }}>
-              {[
-                { icon: "🪪", title: "Photo + Signature",  href: "/photo-joiner",  desc: "Merge for govt forms" },
-                { icon: "📄", title: "Image to PDF",        href: "/image-to-pdf",  desc: "Combine images" },
-                { icon: "🎨", title: "Image Crop",          href: "/image-crop",    desc: "Crop to any ratio" },
-                { icon: "🗜️", title: "PDF Compress",        href: "/pdf-compress",  desc: "Shrink PDF size" },
-                { icon: "🔀", title: "PDF Merge",           href: "/pdf-merge",     desc: "Combine PDFs" },
-                { icon: "✂️", title: "PDF Split",           href: "/pdf-split",     desc: "Split pages" },
-                { icon: "🔒", title: "PDF Protect",         href: "/pdf-protect",   desc: "Password protect" },
-                { icon: "⌨️", title: "Typing Test",       href: "/typing-test",   desc: "CPCT, SSC practice"        },
-              ].map((t) => (
-                <a
-                  key={t.href}
-                  href={t.href}
-                  className="tool-card"
-                  style={{ padding: "14px" }}
-                >
-                  <div className="tool-card-icon" style={{ marginBottom: "8px" }}>{t.icon}</div>
-                  <div style={{ fontSize: "12.5px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "3px" }}>{t.title}</div>
-                  <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{t.desc}</div>
-                </a>
-              ))}
-            </div>
-          </section>
-        </div>
-
-        {/* ── Bottom Ad (Auto Ads) ── */}
-        <div aria-hidden="true">
-          <ins
-            className="adsbygoogle"
-            style={{ display: "block", minHeight: "90px" }}
-            data-ad-format="auto"
-            data-full-width-responsive="true"
+          <ToolWorkflowCTA
+            steps={[
+              { label: "Crop photo", href: "/image-crop" },
+              { label: "Merge photo + signature", href: "/photo-joiner" },
+              { label: "Compress PDF", href: "/pdf-compress" },
+            ]}
           />
-        </div>
 
-        {/* ── FIX-12: Shared Footer component ── */}
-        <Footer />
-
-      </main>
-    </>
+    </ToolPageShell>
   );
 }
 

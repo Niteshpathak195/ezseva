@@ -15,6 +15,8 @@
 
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import JsonLd from "./components/seo/JsonLd";
+import Providers from "./components/Providers";
 
 /* ── SEO Metadata ── */
 export const metadata: Metadata = {
@@ -28,16 +30,16 @@ export const metadata: Metadata = {
     template: "%s | EzSeva",
   },
   description:
-    "Free online tools for India — resize images for SSC/Railway/VYAPAM, compress PDFs, merge documents, add passwords, and practice typing. 100% private. No signup. Works on mobile.",
+    "Free online tools for India — resize photos for SSC, Railway, VYAPAM; compress, merge & split PDFs; typing test for CPCT. Processing in your browser. No signup.",
   keywords: [
     "free pdf tools online india",
     "image resize online free",
+    "SSC photo resize",
+    "VYAPAM photo size",
     "compress pdf online",
     "merge pdf online free",
-    "vyapam photo resize",
-    "ssc photo size online",
-    "pdf password protect free",
-    "image to pdf online",
+    "typing test CPCT",
+    "photo signature merge online",
     "ezseva",
     "built for billions",
   ],
@@ -62,7 +64,7 @@ export const metadata: Metadata = {
     siteName: "EzSeva",
     title: "EzSeva — Free PDF & Image Tools | Built for Billions",
     description:
-      "Free browser-based tools for Indian govt exam candidates. Resize photos, compress PDFs, merge documents. 100% private — files never leave your device.",
+      "Free browser tools for Indian exam candidates. Resize photos, compress PDFs, practice typing — processing on your device.",
     images: [
       {
         url: "https://www.ezseva.in/og-image.png",  // ← www
@@ -91,7 +93,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#00C4B4",
+  themeColor: "#0C1222",
 };
 
 /* ── Root Layout ── */
@@ -139,7 +141,8 @@ export default function RootLayout({
         )}
       </head>
       <body>
-        {children}
+        <JsonLd />
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

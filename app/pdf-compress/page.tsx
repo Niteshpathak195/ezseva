@@ -47,8 +47,9 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { PDFDocument } from "pdf-lib";
 import imageCompression from "browser-image-compression";
-import Navbar from "../components/Navbar";
-import Footer from "../components/Footer";
+import ToolPageShell from "../components/tools/ToolPageShell";
+import { PDF_TARGET_KB_PRESETS } from "../data/exam-presets";
+import { isPdfFile } from "../lib/file-validation";
 
 /* ─── Types ──────────────────────────────────────────────── */
 
@@ -282,6 +283,7 @@ function StepCircle({ n }: { n: string }) {
 export default function PDFCompressPage() {
   const [file, setFile]             = useState<File | null>(null);
   const [level, setLevel]           = useState<CompressionLevel>("medium");
+  const [targetKB, setTargetKB]     = useState(0);
   const [status, setStatus]         = useState<ProcessingStatus>("idle");
   const [progress, setProgress]     = useState(0);
   const [progressMsg, setProgressMsg] = useState("");
@@ -303,9 +305,7 @@ export default function PDFCompressPage() {
   /* ── File handler — FIX: MIME + extension both validated ── */
   const handleFile = useCallback((f: File | null) => {
     if (!f) return;
-    const isValidMime = f.type === "application/pdf";
-    const isValidExt  = f.name.toLowerCase().endsWith(".pdf");
-    if (!isValidMime || !isValidExt) {
+    if (!isPdfFile(f)) {
       setErrorMsg("Please upload a valid PDF file (.pdf).");
       return;
     }
@@ -358,7 +358,20 @@ export default function PDFCompressPage() {
         setProgressMsg(msg);
       };
 
-      const compressedBytes = await compressPDF(arrayBuffer, level, onProgress);
+      const levels: CompressionLevel[] = ["low", "medium", "high", "maximum"];
+      let compressedBytes = await compressPDF(arrayBuffer, level, onProgress);
+
+      if (targetKB > 0) {
+        const startIdx = levels.indexOf(level);
+        for (let i = startIdx + 1; i < levels.length; i++) {
+          if (compressedBytes.byteLength <= targetKB * 1024) break;
+          onProgress(
+            55,
+            `Output ${fmtSize(compressedBytes.byteLength)} — retrying at ${COMPRESSION_CONFIGS[levels[i]].label}…`
+          );
+          compressedBytes = await compressPDF(arrayBuffer, levels[i], onProgress);
+        }
+      }
 
       if (downloadURLRef.current) URL.revokeObjectURL(downloadURLRef.current);
       const blob = new Blob([compressedBytes as unknown as BlobPart], { type: "application/pdf" });
@@ -386,7 +399,7 @@ export default function PDFCompressPage() {
       );
       setStatus("error");
     }
-  }, [file, level]);
+  }, [file, level, targetKB]);
 
   /* ── Reset ── */
   const handleReset = useCallback(() => {
@@ -412,58 +425,10 @@ export default function PDFCompressPage() {
 
   /* ── Render ── */
   return (
-    <>
-      <Navbar />
-
-      <main style={{ background: "var(--bg-subtle)", minHeight: "100vh" }}>
-
-        {/* ── Top Ad — flush under navbar ── */}
-        <div aria-hidden="true" style={{ background: "var(--bg-subtle)" }}>
-          <ins className="adsbygoogle" style={{ display: "block", minHeight: "90px" }}
-            data-ad-format="auto" data-full-width-responsive="true" />
-        </div>
-
-        <div className="container-sm" style={{ padding: "32px 20px 0" }}>
-
-          {/* ══ PAGE HEADER ══ */}
-          <div style={{ textAlign: "center", marginBottom: "28px" }}>
-            <div style={{ display: "inline-flex", alignItems: "center", gap: "7px", background: "var(--brand-light)", border: "1px solid var(--brand-border)", borderRadius: "var(--radius-sm)", padding: "4px 12px", marginBottom: "14px" }}>
-              <span style={{ fontSize: "9px", fontWeight: 800, color: "var(--brand)", letterSpacing: "1.5px", textTransform: "uppercase" }}>
-                🗜️ Free PDF Tool
-              </span>
-            </div>
-            <h1 style={{ fontSize: "clamp(24px, 4vw, 34px)", fontWeight: 900, letterSpacing: "-0.8px", color: "var(--text-primary)", lineHeight: 1.15, marginBottom: "10px" }}>
-              PDF Compress — Free Online
-            </h1>
-            <p style={{ fontSize: "14.5px", color: "var(--text-muted)", maxWidth: "460px", margin: "0 auto 16px", lineHeight: 1.65 }}>
-              Reduce PDF file size for email, WhatsApp, and government portals.{" "}
-              <strong style={{ color: "var(--brand)" }}>Your files never leave your device.</strong>
-            </p>
-            <div style={{ display: "flex", gap: "8px", justifyContent: "center", flexWrap: "wrap", marginBottom: "18px" }}>
-              {[
-                { icon: "🔒", text: "100% Private" },
-                { icon: "⚡", text: "Instant" },
-                { icon: "📱", text: "Mobile Ready" },
-                { icon: "₹",  text: "Free Forever" },
-              ].map((t) => (
-                <span key={t.text} style={{ fontSize: "11.5px", padding: "4px 11px", background: "var(--brand-light)", color: "var(--brand)", borderRadius: "99px", fontWeight: 700, border: "1px solid var(--brand-mid)" }}>
-                  {t.icon} {t.text}
-                </span>
-              ))}
-            </div>
-            {/* FIX: ← All Tools button */}
-            <a
-              href="/"
-              style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "12.5px", fontWeight: 700, color: "var(--text-muted)", textDecoration: "none", padding: "7px 16px", borderRadius: "99px", border: "1.5px solid var(--border-light)", background: "#fff", boxShadow: "0 1px 4px rgba(0,0,0,0.06)", transition: "all 0.15s ease" }}
-              onMouseEnter={(e) => { const el = e.currentTarget as HTMLElement; el.style.borderColor = "var(--brand-border)"; el.style.color = "var(--brand)"; el.style.background = "var(--brand-light)"; }}
-              onMouseLeave={(e) => { const el = e.currentTarget as HTMLElement; el.style.borderColor = "var(--border-light)"; el.style.color = "var(--text-muted)"; el.style.background = "#fff"; }}
-            >
-              ← All Tools
-            </a>
-          </div>
+    <ToolPageShell toolHref="/pdf-compress">
 
           {/* ══ TOOL PANEL ══ */}
-          <div style={{ background: "#fff", border: "1.5px solid var(--border-light)", borderRadius: "var(--radius-xl)", padding: "26px", marginBottom: "16px", boxShadow: "var(--shadow-md)" }}>
+          <div className="ez-tool-workspace" style={{ background: "#fff", border: "1.5px solid var(--border-light)", borderRadius: "var(--radius-xl)", padding: "26px", marginBottom: "16px", boxShadow: "var(--shadow-md)" }}>
 
             {/* STEP 1: Upload */}
             <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px" }}>
@@ -558,6 +523,51 @@ export default function PDFCompressPage() {
               ))}
             </div>
 
+            <div style={{ marginBottom: "24px" }}>
+              <p style={{ fontSize: "12px", fontWeight: 700, color: "var(--text-secondary)", marginBottom: "8px" }}>
+                Portal target size (optional)
+              </p>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+                <button
+                  type="button"
+                  onClick={() => setTargetKB(0)}
+                  aria-pressed={targetKB === 0}
+                  style={{
+                    padding: "8px 14px",
+                    borderRadius: "var(--radius-md)",
+                    border: `1.5px solid ${targetKB === 0 ? "var(--brand)" : "var(--border-light)"}`,
+                    background: targetKB === 0 ? "var(--brand-light)" : "#fff",
+                    cursor: "pointer",
+                    fontSize: "12px",
+                    fontWeight: 700,
+                    fontFamily: "var(--font)",
+                  }}
+                >
+                  No target
+                </button>
+                {PDF_TARGET_KB_PRESETS.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => setTargetKB(p.kb)}
+                    aria-pressed={targetKB === p.kb}
+                    style={{
+                      padding: "8px 14px",
+                      borderRadius: "var(--radius-md)",
+                      border: `1.5px solid ${targetKB === p.kb ? "var(--brand)" : "var(--border-light)"}`,
+                      background: targetKB === p.kb ? "var(--brand-light)" : "#fff",
+                      cursor: "pointer",
+                      fontSize: "12px",
+                      fontWeight: 700,
+                      fontFamily: "var(--font)",
+                    }}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* FIX: alert-error class (not "alert alert-error") */}
             {errorMsg && (
               <div className="alert-error" role="alert" style={{ marginBottom: "16px" }}>
@@ -616,6 +626,12 @@ export default function PDFCompressPage() {
                 ) : (
                   <div style={{ fontSize: "12px", color: "var(--text-muted)", padding: "10px 14px", background: "var(--bg-muted)", borderRadius: "var(--radius-md)", border: "1px solid var(--border-light)" }}>
                     ℹ️ File size could not be reduced further. This PDF may already be optimized, or has no embedded images. Try <strong>Maximum</strong> compression for more aggressive reduction.
+                  </div>
+                )}
+
+                {targetKB > 0 && stats.compressedBytes > targetKB * 1024 && (
+                  <div className="alert-error" role="alert" style={{ fontSize: "12.5px", padding: "10px 14px" }}>
+                    ⚠️ Output is {fmtSize(stats.compressedBytes)} — still above your {targetKB} KB portal target. Try <strong>Maximum</strong> compression or remove pages/images from the PDF first.
                   </div>
                 )}
               </div>
@@ -782,44 +798,7 @@ export default function PDFCompressPage() {
             ))}
           </section>
 
-          {/* ── Related Tools (8 cards) ── */}
-          <section aria-label="Related tools" style={{ marginBottom: "16px" }}>
-            <h2 style={{ fontSize: "15px", fontWeight: 800, marginBottom: "12px", color: "var(--text-secondary)" }}>
-              🔗 Related Tools
-            </h2>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: "10px" }}>
-              {[
-                { icon: "🖼️", title: "Image Resize",      href: "/image-resize",  desc: "Resize for exams" },
-                { icon: "🪪", title: "Photo + Signature", href: "/photo-joiner",  desc: "Merge for govt forms" },
-                { icon: "📄", title: "Image to PDF",      href: "/image-to-pdf",  desc: "Combine images" },
-                { icon: "🎨", title: "Image Crop",        href: "/image-crop",    desc: "Crop to exact size" },
-                { icon: "🔗", title: "PDF Merge",         href: "/pdf-merge",     desc: "Combine PDFs" },
-                { icon: "✂️", title: "PDF Split",         href: "/pdf-split",     desc: "Extract pages" },
-                { icon: "🔒", title: "PDF Protect",       href: "/pdf-protect",   desc: "Password protect" },
-                { icon: "⌨️", title: "Typing Test",       href: "/typing-test",   desc: "CPCT, SSC practice" },
-              ].map((t) => (
-                <a key={t.href} href={t.href} className="tool-card" style={{ padding: "14px" }}>
-                  <div className="tool-card-icon" style={{ marginBottom: "8px" }}>{t.icon}</div>
-                  <div style={{ fontSize: "12.5px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "3px" }}>{t.title}</div>
-                  <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{t.desc}</div>
-                </a>
-              ))}
-            </div>
-          </section>
-
-        </div>
-
-        {/* ── Bottom Ad ── */}
-        <div aria-hidden="true">
-          <ins className="adsbygoogle" style={{ display: "block", minHeight: "90px" }}
-            data-ad-format="auto" data-full-width-responsive="true" />
-        </div>
-
-        {/* FIX: Shared Footer component */}
-        <Footer />
-
-      </main>
-    </>
+    </ToolPageShell>
   );
 }
 

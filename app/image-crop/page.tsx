@@ -1,8 +1,12 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import Navbar from "../components/Navbar";
-import Footer from "../components/Footer";
+import ToolPageShell from "../components/tools/ToolPageShell";
+import KBStatusBadge from "../components/tools/KBStatusBadge";
+import ToolWorkflowCTA from "../components/tools/ToolWorkflowCTA";
+import ImageCaptureUpload from "../components/tools/ImageCaptureUpload";
+import { compressCanvasToDataUrl } from "../lib/image-utils";
+import { normalizeImageFile } from "../lib/heic-utils";
 
 /* ─── Types ──────────────────────────────────────────────────── */
 
@@ -81,6 +85,8 @@ export default function ImageCropPage() {
   const [customH, setCustomH]           = useState("");
   const [outputFormat, setOutputFormat] = useState<OutputFormat>("jpeg");
   const [jpegQuality, setJpegQuality]   = useState(92);
+  const [rotateDeg, setRotateDeg]       = useState(0);
+  const [targetMaxKB, setTargetMaxKB]   = useState(20);
 
   const [resultDataUrl, setResultDataUrl] = useState<string>("");
   const [resultSize, setResultSize]       = useState(0);
@@ -88,10 +94,7 @@ export default function ImageCropPage() {
   const [resultH, setResultH]             = useState(0);
   const [isCropped, setIsCropped]         = useState(false);
 
-  const [isDragOver, setIsDragOver] = useState(false);
   const [errorMsg, setErrorMsg]     = useState("");
-
-  const fileInputRef   = useRef<HTMLInputElement>(null);
   const canvasRef      = useRef<HTMLCanvasElement>(null);
   const containerRef   = useRef<HTMLDivElement>(null);
   const imageRef       = useRef<HTMLImageElement | null>(null);
@@ -100,11 +103,12 @@ export default function ImageCropPage() {
   const MAX_SIZE = 20 * 1024 * 1024;
 
   /* ── Load image ── revoke previous Object URL ── */
-  const loadImage = useCallback((f: File) => {
+  const loadImage = useCallback(async (f: File) => {
     const isValidMime = ALLOWED_MIME.includes(f.type);
     const isValidExt  = ALLOWED_EXT.some((ext) => f.name.toLowerCase().endsWith(ext));
-    if (!isValidMime && !isValidExt) {
-      setErrorMsg("Unsupported file type. Use JPG, PNG, WebP, GIF, or BMP.");
+    const isHeic = f.name.toLowerCase().endsWith(".heic") || f.name.toLowerCase().endsWith(".heif");
+    if (!isValidMime && !isValidExt && !isHeic) {
+      setErrorMsg("Unsupported file type. Use JPG, PNG, WebP, GIF, BMP, or HEIC.");
       return;
     }
     if (f.size > MAX_SIZE) {
@@ -113,18 +117,22 @@ export default function ImageCropPage() {
     }
 
     setErrorMsg("");
-    setImgFile(f);
-    setIsCropped(false);
-    setResultDataUrl("");
+    try {
+      const normalized = await normalizeImageFile(f);
+      setImgFile(normalized);
+      setIsCropped(false);
+      setResultDataUrl("");
 
-    // Revoke previous Object URL before creating a new one
-    if (currentObjUrlRef.current) {
-      URL.revokeObjectURL(currentObjUrlRef.current);
+      if (currentObjUrlRef.current) {
+        URL.revokeObjectURL(currentObjUrlRef.current);
+      }
+      const url = URL.createObjectURL(normalized);
+      currentObjUrlRef.current = url;
+      setImgSrc(url);
+    } catch {
+      setErrorMsg("Could not load image. HEIC from iPhone is supported.");
     }
-    const url = URL.createObjectURL(f);
-    currentObjUrlRef.current = url;
-    setImgSrc(url);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   /* ── Draw canvas when image/crop changes ── */
   const drawCanvas = useCallback(() => {
@@ -262,7 +270,7 @@ export default function ImageCropPage() {
   }, [canvasW, canvasH]);
 
   /* ── Crop & render ── */
-  const handleCrop = useCallback(() => {
+  const handleCrop = useCallback(async () => {
     if (!imageRef.current || crop.w < 4 || crop.h < 4) {
       setErrorMsg("Draw a crop area first.");
       return;
@@ -275,18 +283,36 @@ export default function ImageCropPage() {
       return;
     }
     try {
-      const offscreen    = document.createElement("canvas");
-      offscreen.width    = outW;
-      offscreen.height   = outH;
-      const ctx          = offscreen.getContext("2d")!;
-      const srcX         = Math.round(crop.x / scale);
-      const srcY         = Math.round(crop.y / scale);
-      const srcW         = Math.round(crop.w / scale);
-      const srcH         = Math.round(crop.h / scale);
-      ctx.drawImage(imageRef.current, srcX, srcY, srcW, srcH, 0, 0, outW, outH);
-      const mime    = outputFormat === "jpeg" ? "image/jpeg" : outputFormat === "png" ? "image/png" : "image/webp";
-      const quality = outputFormat === "png" ? undefined : jpegQuality / 100;
-      const dataUrl = offscreen.toDataURL(mime, quality);
+      const srcX = Math.round(crop.x / scale);
+      const srcY = Math.round(crop.y / scale);
+      const srcW = Math.round(crop.w / scale);
+      const srcH = Math.round(crop.h / scale);
+
+      const srcCanvas = document.createElement("canvas");
+      srcCanvas.width = imageRef.current.naturalWidth;
+      srcCanvas.height = imageRef.current.naturalHeight;
+      srcCanvas.getContext("2d")!.drawImage(imageRef.current, 0, 0);
+
+      const offscreen = document.createElement("canvas");
+      if (rotateDeg === 90 || rotateDeg === 270) {
+        offscreen.width = outH;
+        offscreen.height = outW;
+      } else {
+        offscreen.width = outW;
+        offscreen.height = outH;
+      }
+      const ctx = offscreen.getContext("2d")!;
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, offscreen.width, offscreen.height);
+      ctx.translate(offscreen.width / 2, offscreen.height / 2);
+      ctx.rotate((rotateDeg * Math.PI) / 180);
+      ctx.drawImage(srcCanvas, srcX, srcY, srcW, srcH, -outW / 2, -outH / 2, outW, outH);
+
+      const mime = outputFormat === "jpeg" ? "image/jpeg" : outputFormat === "png" ? "image/png" : "image/webp";
+      const dataUrl =
+        outputFormat === "png"
+          ? offscreen.toDataURL(mime)
+          : await compressCanvasToDataUrl(offscreen, mime, targetMaxKB, jpegQuality / 100);
       const base64  = dataUrl.split(",")[1];
       const byteLen = Math.round((base64.length * 3) / 4);
       setResultDataUrl(dataUrl);
@@ -298,7 +324,7 @@ export default function ImageCropPage() {
       const msg = err instanceof Error ? err.message : "Something went wrong. Please try again.";
       setErrorMsg(msg);
     }
-  }, [crop, customW, customH, scale, outputFormat, jpegQuality]);
+  }, [crop, customW, customH, scale, outputFormat, jpegQuality, rotateDeg, targetMaxKB]);
 
   /* ── Download — Blob URL, revokeObjectURL after 10s ── */
   const handleDownload = useCallback(() => {
@@ -355,75 +381,13 @@ export default function ImageCropPage() {
     setResultW(0);
     setResultH(0);
     setIsCropped(false);
-    setIsDragOver(false);
     setErrorMsg("");
     imageRef.current = null;
   }, []);
 
-  /* ── Drop zone ── */
-  const onZoneDragOver  = useCallback((e: React.DragEvent) => { e.preventDefault(); setIsDragOver(true); }, []);
-  const onZoneDragLeave = useCallback((e: React.DragEvent) => { e.preventDefault(); setIsDragOver(false); }, []);
-  const onZoneDrop      = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragOver(false);
-    const f = e.dataTransfer.files?.[0];
-    if (f) loadImage(f);
-  }, [loadImage]);
-  const onFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0];
-    if (f) loadImage(f);
-    e.target.value = "";
-  }, [loadImage]);
-
   /* ─────────────────────────────────────────────────────────── */
   return (
-    <>
-      <Navbar />
-      <main style={{ background: "var(--bg-subtle)", minHeight: "100vh", paddingBottom: "56px" }}>
-
-        {/* ── Top Ad ── */}
-        <div aria-hidden="true" style={{ background: "var(--bg-subtle)" }}>
-          <ins className="adsbygoogle" style={{ display: "block", minHeight: "90px" }}
-            data-ad-format="auto" data-full-width-responsive="true" />
-        </div>
-
-        <div className="container-sm" style={{ padding: "32px 20px 0" }}>
-
-          {/* ══ PAGE HEADER ══ */}
-          <div style={{ textAlign: "center", marginBottom: "28px" }}>
-            <div style={{ display: "inline-flex", alignItems: "center", gap: "7px", background: "var(--brand-light)", border: "1px solid var(--brand-border)", borderRadius: "var(--radius-sm)", padding: "4px 12px", marginBottom: "14px" }}>
-              <span style={{ fontSize: "9px", fontWeight: 800, color: "var(--brand)", letterSpacing: "1.5px", textTransform: "uppercase" }}>
-                🎨 Free Image Tool
-              </span>
-            </div>
-            <h1 style={{ fontSize: "clamp(24px, 4vw, 34px)", fontWeight: 900, letterSpacing: "-0.8px", color: "var(--text-primary)", lineHeight: 1.15, marginBottom: "10px" }}>
-              Image Crop — Free Online Cropper
-            </h1>
-            <p style={{ fontSize: "14.5px", color: "var(--text-muted)", maxWidth: "460px", margin: "0 auto 16px", lineHeight: 1.65 }}>
-              Crop photos for SSC, Railway, Passport, UPSC & custom sizes.{" "}
-              <strong style={{ color: "var(--brand)" }}>Your files never leave your device.</strong>
-            </p>
-            <div style={{ display: "flex", gap: "8px", justifyContent: "center", flexWrap: "wrap", marginBottom: "18px" }}>
-              {[
-                { icon: "🔒", text: "100% Private" },
-                { icon: "⚡", text: "Instant" },
-                { icon: "📱", text: "Mobile Ready" },
-                { icon: "₹",  text: "Free Forever" },
-              ].map((t) => (
-                <span key={t.text} style={{ fontSize: "11.5px", padding: "4px 11px", background: "var(--brand-light)", color: "var(--brand)", borderRadius: "99px", fontWeight: 700, border: "1px solid var(--brand-mid)" }}>
-                  {t.icon} {t.text}
-                </span>
-              ))}
-            </div>
-            <a
-              href="/"
-              style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "12.5px", fontWeight: 700, color: "var(--text-muted)", textDecoration: "none", padding: "7px 16px", borderRadius: "99px", border: "1.5px solid var(--border-light)", background: "#fff", boxShadow: "0 1px 4px rgba(0,0,0,0.06)", transition: "all 0.15s ease" }}
-              onMouseEnter={(e) => { const el = e.currentTarget as HTMLElement; el.style.borderColor = "var(--brand-border)"; el.style.color = "var(--brand)"; el.style.background = "var(--brand-light)"; }}
-              onMouseLeave={(e) => { const el = e.currentTarget as HTMLElement; el.style.borderColor = "var(--border-light)"; el.style.color = "var(--text-muted)"; el.style.background = "#fff"; }}
-            >
-              ← All Tools
-            </a>
-          </div>
+    <ToolPageShell toolHref="/image-crop">
 
           {/* Error */}
           {errorMsg && (
@@ -434,33 +398,18 @@ export default function ImageCropPage() {
 
           {/* ══ UPLOAD ZONE ══ */}
           {!imgSrc && (
-            <div
-              className={`upload-zone${isDragOver ? " drag-over" : ""}`}
-              onDragOver={onZoneDragOver}
-              onDragLeave={onZoneDragLeave}
-              onDrop={onZoneDrop}
-              onClick={() => fileInputRef.current?.click()}
-              role="button"
-              tabIndex={0}
-              aria-label="Upload image"
-              onKeyDown={(e) => e.key === "Enter" && fileInputRef.current?.click()}
+            <ImageCaptureUpload
+              onFiles={(files) => {
+                const f = files instanceof FileList ? files[0] : files[0];
+                if (f) loadImage(f);
+              }}
+              title="Take a photo or pick from gallery"
+              hint="JPG, PNG, WebP, GIF, BMP, HEIC · up to 20 MB"
+              icon="🖼️"
+              accept="image/*,.heic,.heif"
+              ariaLabel="Upload image for cropping"
               style={{ marginBottom: "16px" }}
-            >
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                style={{ display: "none" }}
-                onChange={onFileInput}
-              />
-              <div style={{ fontSize: "36px", marginBottom: "10px" }}>🖼️</div>
-              <p style={{ fontSize: "15px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "4px" }}>
-                Drag & drop an image, or click to browse
-              </p>
-              <p style={{ fontSize: "12.5px", color: "var(--text-muted)" }}>
-                JPG, PNG, WebP, GIF, BMP · up to 20 MB
-              </p>
-            </div>
+            />
           )}
 
           {/* ══ CROP WORKSPACE ══ */}
@@ -585,6 +534,28 @@ export default function ImageCropPage() {
                     />
                   </div>
                 )}
+                <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center", marginTop: "12px" }}>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => setRotateDeg((d) => (d + 90) % 360)}
+                    style={{ fontSize: "12px", padding: "6px 12px" }}
+                  >
+                    ↻ Rotate 90° ({rotateDeg}°)
+                  </button>
+                  <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", fontWeight: 600, color: "var(--text-secondary)" }}>
+                    Max KB
+                    <input
+                      type="number"
+                      className="input"
+                      min={1}
+                      max={500}
+                      value={targetMaxKB}
+                      onChange={(e) => setTargetMaxKB(Number(e.target.value) || 20)}
+                      style={{ width: "72px", padding: "6px 8px", fontSize: "12px" }}
+                    />
+                  </label>
+                </div>
               </div>
 
               {/* Crop + Reset buttons */}
@@ -638,6 +609,12 @@ export default function ImageCropPage() {
                   </div>
                 ))}
               </div>
+
+              <KBStatusBadge
+                sizeKB={resultSize / 1024}
+                maxKB={targetMaxKB}
+                className="ez-kb-badge--block"
+              />
 
               <button
                 className="btn-cta"
@@ -701,41 +678,13 @@ export default function ImageCropPage() {
             ))}
           </section>
 
-          {/* ══ RELATED TOOLS ══ */}
-          <section aria-label="More free tools" style={{ marginBottom: "8px" }}>
-            <h2 style={{ fontSize: "15px", fontWeight: 800, marginBottom: "12px", color: "var(--text-secondary)" }}>
-              🔗 More Free Tools
-            </h2>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(145px, 1fr))", gap: "10px" }}>
-              {[
-                { icon: "🖼️", title: "Image Resize",   href: "/image-resize", desc: "Resize for govt exams" },
-                { icon: "🪪", title: "Photo+Signature", href: "/photo-joiner", desc: "Merge for govt forms" },
-                { icon: "📄", title: "Image to PDF",    href: "/image-to-pdf", desc: "Convert images to PDF" },
-                { icon: "🔗", title: "PDF Merge",       href: "/pdf-merge",    desc: "Combine PDFs into one" },
-                { icon: "✂️", title: "PDF Split",       href: "/pdf-split",    desc: "Extract PDF pages" },
-                { icon: "📦", title: "PDF Compress",    href: "/pdf-compress", desc: "Reduce PDF size" },
-                { icon: "🔒", title: "PDF Protect",     href: "/pdf-protect",  desc: "Password protect PDF" },
-                { icon: "⌨️", title: "Typing Test", href: "/typing-test", desc: "Practice for CPCT, SSC" },
-              ].map((t) => (
-                <a key={t.href} href={t.href} className="tool-card" style={{ padding: "14px" }}>
-                  <div className="tool-card-icon" style={{ marginBottom: "7px" }}>{t.icon}</div>
-                  <div style={{ fontSize: "12px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "3px" }}>{t.title}</div>
-                  <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{t.desc}</div>
-                </a>
-              ))}
-            </div>
-          </section>
+          <ToolWorkflowCTA
+            steps={[
+              { label: "Resize to exam size", href: "/image-resize" },
+              { label: "Merge photo + signature", href: "/photo-joiner" },
+            ]}
+          />
 
-        </div>
-
-        {/* ── Bottom Ad ── */}
-        <div aria-hidden="true">
-          <ins className="adsbygoogle" style={{ display: "block", minHeight: "90px" }}
-            data-ad-format="auto" data-full-width-responsive="true" />
-        </div>
-
-        <Footer />
-      </main>
-    </>
+    </ToolPageShell>
   );
 }

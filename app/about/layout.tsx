@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "About EzSeva — Free Tools Built for Billions of Indians | EzSeva",
   description:
-    "EzSeva is a free browser-based tool platform built for Indian students, govt exam aspirants & professionals. 100% private — files never leave your device. No signup ever.",
+    "EzSeva offers free browser tools for India — image resize, PDF compress, typing test. Processing on your device. Not a government website.",
   keywords: [
     "about ezseva",
     "ezseva free tools india",

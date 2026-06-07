@@ -1,12 +1,10 @@
-import { TOOLS, type Category } from "../../data/tools";
+import { TOOLS, CATEGORY_META, type Category } from "../../data/tools";
 
 const CATEGORIES: {
   cat: Category;
   title: string;
   desc: string;
   icon: string;
-  accent: string;
-  bg: string;
   href: string;
 }[] = [
   {
@@ -14,8 +12,6 @@ const CATEGORIES: {
     title: "Image Tools",
     desc: "Resize, crop, merge photo & signature for govt exams",
     icon: "🖼️",
-    accent: "linear-gradient(135deg, #22D3EE, #00C4B4)",
-    bg: "#E8FFFC",
     href: "/#tools?cat=Image",
   },
   {
@@ -23,8 +19,6 @@ const CATEGORIES: {
     title: "PDF Tools",
     desc: "Compress, merge, split and password-protect PDFs",
     icon: "📄",
-    accent: "linear-gradient(135deg, #6366F1, #2582A1)",
-    bg: "#EEF2FF",
     href: "/#tools?cat=PDF",
   },
   {
@@ -32,8 +26,6 @@ const CATEGORIES: {
     title: "Typing Test",
     desc: "Hindi & English speed test for CPCT, SSC, Railway",
     icon: "⌨️",
-    accent: "linear-gradient(135deg, #10B981, #059669)",
-    bg: "#ECFDF5",
     href: "/typing-test",
   },
 ];
@@ -43,6 +35,7 @@ export default function CategoryCards() {
     <div className="ez-cat-grid">
       {CATEGORIES.map((c) => {
         const count = TOOLS.filter((t) => t.cat === c.cat).length;
+        const meta = CATEGORY_META[c.cat as keyof typeof CATEGORY_META];
         return (
           <a
             key={c.cat}
@@ -50,12 +43,12 @@ export default function CategoryCards() {
             className="ez-cat-card"
             style={
               {
-                "--cat-accent": c.accent,
-                "--cat-bg": c.bg,
+                "--cat-accent": meta?.grad ?? "var(--grad-brand)",
+                "--cat-bg": meta?.accentSoft ?? "var(--brand-light)",
               } as Record<string, string>
             }
           >
-            <div className="ez-cat-icon" style={{ background: c.bg }}>
+            <div className="ez-cat-icon" style={{ background: meta?.accentSoft }}>
               {c.icon}
             </div>
             <h3 className="ez-cat-title">{c.title}</h3>

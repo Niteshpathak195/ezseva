@@ -48,10 +48,13 @@
  * ============================================================
  */
 
-import { useState, useRef, useCallback } from "react";
-import Navbar from "../components/Navbar";
-import Footer from "../components/Footer";
+import { useState, useRef, useCallback, useEffect } from "react";
+import ToolPageShell from "../components/tools/ToolPageShell";
+import ToolWorkflowCTA from "../components/tools/ToolWorkflowCTA";
+import ImageCaptureUpload, { type ImageCaptureUploadHandle } from "../components/tools/ImageCaptureUpload";
 import { PDFDocument } from "pdf-lib";
+import { isAcceptedImageFile } from "../lib/file-validation";
+import { normalizeImageFile } from "../lib/heic-utils";
 
 /* ─── Types ──────────────────────────────────────────────────── */
 
@@ -94,9 +97,9 @@ const FITS: Record<ImageFit, string> = {
 const MAX_FILES   = 20;
 const MAX_MB      = 20;
 // FIX: both MIME and extension arrays for dual validation
-const ACCEPT_MIME = ["image/jpeg", "image/png", "image/webp", "image/gif"];
-const ACCEPT_EXT  = [".jpg", ".jpeg", ".png", ".webp", ".gif"];
-const ACCEPT_ATTR = ".jpg,.jpeg,.png,.webp,.gif";
+const ACCEPT_MIME = ["image/jpeg", "image/png", "image/webp", "image/gif", "image/heic", "image/heif"];
+const ACCEPT_EXT  = [".jpg", ".jpeg", ".png", ".webp", ".gif", ".heic", ".heif"];
+const ACCEPT_ATTR = ".jpg,.jpeg,.png,.webp,.gif,.heic,.heif";
 
 /* ─── Utility ────────────────────────────────────────────────── */
 
@@ -162,7 +165,6 @@ function SectionLabel({ n, text }: { n: string; text: string }) {
 
 export default function ImageToPdfPage() {
   const [images, setImages]               = useState<ImageFile[]>([]);
-  const [isDraggingOver, setIsDraggingOver] = useState(false);
   const [pageSize, setPageSize]           = useState<PageSize>("a4");
   const [margin, setMargin]               = useState<MarginSize>("small");
   const [fit, setFit]                     = useState<ImageFit>("fit");
@@ -175,7 +177,14 @@ export default function ImageToPdfPage() {
   const [dragItemId, setDragItemId]         = useState<string | null>(null);
   const [dragOverItemId, setDragOverItemId] = useState<string | null>(null);
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const uploadCaptureRef = useRef<ImageCaptureUploadHandle>(null);
+  const pdfBlobRef   = useRef<Blob | null>(null);
+
+  useEffect(() => {
+    return () => {
+      pdfBlobRef.current = null;
+    };
+  }, []);
 
   /* ── File validation & ingestion ── */
   const ingestFiles = useCallback(async (rawFiles: FileList | File[]) => {
@@ -193,10 +202,7 @@ export default function ImageToPdfPage() {
     const valid: File[] = [];
 
     for (const f of toProcess) {
-      // FIX: validate both MIME type AND file extension
-      const isValidMime = ACCEPT_MIME.includes(f.type);
-      const isValidExt  = ACCEPT_EXT.some((ext) => f.name.toLowerCase().endsWith(ext));
-      if (!isValidMime || !isValidExt) {
+      if (!isAcceptedImageFile(f, ACCEPT_MIME, ACCEPT_EXT)) {
         rejected.push(`${f.name} (unsupported format)`);
         continue;
       }
@@ -216,13 +222,14 @@ export default function ImageToPdfPage() {
     try {
       const newImages: ImageFile[] = await Promise.all(
         valid.map(async (f) => {
-          const dataUrl = await readFileAsDataUrl(f);
+          const normalized = await normalizeImageFile(f);
+          const dataUrl = await readFileAsDataUrl(normalized);
           const { width, height } = await getImageDimensions(dataUrl);
           return {
             id: uid(),
-            file: f,
-            name: f.name,
-            sizeKB: f.size / 1024,
+            file: normalized,
+            name: normalized.name,
+            sizeKB: normalized.size / 1024,
             dataUrl,
             width,
             height,
@@ -235,21 +242,6 @@ export default function ImageToPdfPage() {
       setError("Failed to load one or more images. Please try again.");
     }
   }, [images.length]);
-
-  /* ── Drop zone handlers ── */
-  const onDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDraggingOver(false);
-    ingestFiles(e.dataTransfer.files);
-  }, [ingestFiles]);
-
-  const onDragOver  = useCallback((e: React.DragEvent) => { e.preventDefault(); setIsDraggingOver(true); }, []);
-  const onDragLeave = useCallback(() => setIsDraggingOver(false), []);
-
-  const onFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) ingestFiles(e.target.files);
-    e.target.value = "";
-  };
 
   /* ── Remove image ── */
   const removeImage = (id: string) => {
@@ -288,7 +280,21 @@ export default function ImageToPdfPage() {
     setError(null);
     setResultInfo(null);
     setIsGenerating(false);
+    pdfBlobRef.current = null;
   };
+
+  const downloadStoredPdf = useCallback(() => {
+    if (!pdfBlobRef.current) return;
+    const url = URL.createObjectURL(pdfBlobRef.current);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${filename.trim() || "images-to-pdf"}.pdf`;
+    a.style.display = "none";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  }, [filename]);
 
   /* ── Core: Generate PDF ── */
   const generatePDF = async () => {
@@ -382,8 +388,9 @@ export default function ImageToPdfPage() {
       const pdfBytes = await pdfDoc.save();
       setProgress(98);
 
-      // Download — FIX-2 pattern: appendChild → click → removeChild → revokeObjectURL
-     const blob     = new Blob([pdfBytes as unknown as BlobPart], { type: "application/pdf" });
+      const blob = new Blob([pdfBytes as unknown as BlobPart], { type: "application/pdf" });
+      pdfBlobRef.current = blob;
+
       const url      = URL.createObjectURL(blob);
       const a        = document.createElement("a");
       a.href         = url;
@@ -409,112 +416,26 @@ export default function ImageToPdfPage() {
 
   /* ─── Render ─────────────────────────────────────────────── */
   return (
-    <>
-      <Navbar />
-
-      <main style={{ minHeight: "100vh", background: "var(--bg-subtle)", paddingBottom: "0" }}>
-
-        {/* ── Top Ad — flush under navbar ── */}
-        <div aria-hidden="true" style={{ background: "var(--bg-subtle)" }}>
-          <ins className="adsbygoogle" style={{ display: "block", minHeight: "90px" }}
-            data-ad-format="auto" data-full-width-responsive="true" />
-        </div>
-
-        {/* ── Page Header ── */}
-        <div style={{
-          background: "linear-gradient(135deg, var(--brand-light) 0%, #fff 60%)",
-          borderBottom: "1.5px solid var(--border-light)",
-          padding: "36px 16px 28px",
-        }}>
-          <div className="container-sm">
-
-            {/* FIX: ← All Tools button (replaces breadcrumb) */}
-            <div style={{ marginBottom: "16px" }}>
-              <a
-                href="/"
-                style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "12.5px", fontWeight: 700, color: "var(--text-muted)", textDecoration: "none", padding: "7px 16px", borderRadius: "99px", border: "1.5px solid var(--border-light)", background: "#fff", boxShadow: "0 1px 4px rgba(0,0,0,0.06)", transition: "all 0.15s ease" }}
-                onMouseEnter={(e) => { const el = e.currentTarget as HTMLElement; el.style.borderColor = "var(--brand-border)"; el.style.color = "var(--brand)"; el.style.background = "var(--brand-light)"; }}
-                onMouseLeave={(e) => { const el = e.currentTarget as HTMLElement; el.style.borderColor = "var(--border-light)"; el.style.color = "var(--text-muted)"; el.style.background = "#fff"; }}
-              >
-                ← All Tools
-              </a>
-            </div>
-
-            <div style={{ display: "flex", alignItems: "flex-start", gap: "16px", flexWrap: "wrap" }}>
-              <div style={{
-                width: 52, height: 52, borderRadius: "var(--radius-lg)",
-                background: "var(--brand)", display: "flex",
-                alignItems: "center", justifyContent: "center",
-                fontSize: "26px", flexShrink: 0,
-                boxShadow: "0 6px 18px rgba(13,148,136,.25)",
-              }}>
-                📄
-              </div>
-              <div>
-                <h1 style={{ fontSize: "clamp(20px, 5vw, 26px)", fontWeight: 900, color: "var(--text-primary)", lineHeight: 1.2, marginBottom: "6px" }}>
-                  Image to PDF Converter
-                </h1>
-                <p style={{ fontSize: "13.5px", color: "var(--text-muted)", lineHeight: 1.7, maxWidth: "540px" }}>
-                  Convert JPG, PNG, WebP images into a single PDF — reorder pages, set margins, choose page size.
-                  100% free, 100% private — files never leave your device.
-                </p>
-                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginTop: "10px" }}>
-                  {["✅ No Upload", "🔒 100% Private", "⚡ Instant", "📱 Mobile Friendly"].map((b) => (
-                    <span key={b} style={{ fontSize: "11px", fontWeight: 700, padding: "3px 9px", borderRadius: "20px", background: "var(--brand-mid)", color: "var(--brand-dark)", border: "1px solid var(--brand-border)" }}>
-                      {b}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* ── Tool Body ── */}
-        <div className="container-sm" style={{ padding: "24px 16px" }}>
+    <ToolPageShell toolHref="/image-to-pdf">
 
           {/* ── STEP 1: Upload Zone ── */}
-          <section aria-label="Upload images" style={{ marginBottom: "20px" }}>
+          <section aria-label="Upload images" className="ez-tool-workspace" style={{ marginBottom: "20px" }}>
             <SectionLabel n="1" text="Upload Images" />
-            <div
-              className={`upload-zone${isDraggingOver ? " drag-over" : ""}`}
-              onDrop={onDrop}
-              onDragOver={onDragOver}
-              onDragLeave={onDragLeave}
-              onClick={() => fileInputRef.current?.click()}
-              role="button"
-              tabIndex={0}
-              aria-label="Click or drag images to upload"
-              onKeyDown={(e) => e.key === "Enter" && fileInputRef.current?.click()}
-              style={{
-                cursor: "pointer",
-                border: `2px dashed ${isDraggingOver ? "var(--brand)" : "var(--brand-border)"}`,
-                borderRadius: "var(--radius-xl)",
-                background: isDraggingOver ? "var(--brand-light)" : "var(--bg-muted)",
-                padding: "36px 24px",
-                textAlign: "center",
-                transition: "all 0.2s ease",
-                outline: "none",
-              }}
-            >
-              <div style={{ fontSize: "38px", marginBottom: "10px" }}>
-                {isDraggingOver ? "📂" : "🖼️"}
-              </div>
-              <p style={{ fontSize: "15px", fontWeight: 800, color: "var(--text-primary)", marginBottom: "6px" }}>
-                {isDraggingOver ? "Drop images here!" : "Click to select or drag & drop images"}
-              </p>
-              <p style={{ fontSize: "12.5px", color: "var(--text-muted)" }}>
-                JPG, PNG, WebP, GIF · Max {MAX_MB} MB/file · Up to {MAX_FILES} images
-              </p>
-            </div>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept={ACCEPT_ATTR}
+            <ImageCaptureUpload
+              ref={uploadCaptureRef}
               multiple
-              onChange={onFileInputChange}
-              style={{ display: "none" }}
-              aria-hidden="true"
+              onFiles={ingestFiles}
+              accept={ACCEPT_ATTR}
+              title="Take photos or pick from gallery"
+              hint={`JPG, PNG, WebP, GIF · Max ${MAX_MB} MB/file · Up to ${MAX_FILES} images`}
+              icon="🖼️"
+              disabled={images.length >= MAX_FILES}
+              ariaLabel="Upload images for PDF conversion"
+              style={{
+                borderRadius: "var(--radius-xl)",
+                padding: "36px 24px",
+                background: "var(--bg-muted)",
+              }}
             />
           </section>
 
@@ -606,17 +527,21 @@ export default function ImageToPdfPage() {
 
                 {/* Add More card */}
                 {images.length < MAX_FILES && (
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
+                  <div
                     aria-label="Add more images"
-                    style={{ borderRadius: "var(--radius-md)", border: "2px dashed var(--brand-border)", background: "var(--bg-muted)", minHeight: "140px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "6px", cursor: "pointer", transition: "border-color 0.15s, background 0.15s" }}
-                    onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "var(--brand-light)"; (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--brand)"; }}
-                    onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "var(--bg-muted)"; (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--brand-border)"; }}
+                    style={{ borderRadius: "var(--radius-md)", border: "2px dashed var(--brand-border)", background: "var(--bg-muted)", minHeight: "140px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "6px", padding: "12px" }}
                   >
                     <span style={{ fontSize: "22px" }}>➕</span>
                     <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--brand)" }}>Add More</span>
-                    <span style={{ fontSize: "10px", color: "var(--text-hint)" }}>{MAX_FILES - images.length} left</span>
-                  </button>
+                    <span style={{ fontSize: "10px", color: "var(--text-hint)", marginBottom: 4 }}>{MAX_FILES - images.length} left</span>
+                    <ImageCaptureUpload
+                      variant="buttons-only"
+                      multiple
+                      accept={ACCEPT_ATTR}
+                      onFiles={ingestFiles}
+                      dragDrop={false}
+                    />
+                  </div>
                 )}
               </div>
             </section>
@@ -750,8 +675,19 @@ export default function ImageToPdfPage() {
                   aria-label="Generate and download PDF"
                   style={{ flex: "1 1 180px", minWidth: "180px" }}
                 >
-                  {isGenerating ? `⚙️ Generating… ${progress}%` : "📥 Generate PDF"}
+                  {isGenerating ? `⚙️ Generating… ${progress}%` : resultInfo ? "🔄 Regenerate PDF" : "📥 Generate PDF"}
                 </button>
+                {resultInfo && !isGenerating && (
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={downloadStoredPdf}
+                    aria-label="Download PDF again"
+                    style={{ flex: "1 1 140px" }}
+                  >
+                    ⬇️ Download Again
+                  </button>
+                )}
                 <button className="btn-secondary" onClick={reset} disabled={isGenerating} aria-label="Reset">
                   🔄 Reset
                 </button>
@@ -773,9 +709,13 @@ export default function ImageToPdfPage() {
                 Great for Aadhaar card, marksheets, certificates, and multi-page documents.
               </p>
               <div style={{ display: "flex", gap: "10px", justifyContent: "center", flexWrap: "wrap" }}>
-                <button className="btn-primary" onClick={() => fileInputRef.current?.click()}>
-                  🖼️ Select Images
-                </button>
+                <ImageCaptureUpload
+                  variant="buttons-only"
+                  multiple
+                  accept={ACCEPT_ATTR}
+                  onFiles={ingestFiles}
+                  dragDrop={false}
+                />
                 <a href="/" className="btn-secondary" style={{ textDecoration: "none", display: "inline-flex", alignItems: "center" }}>
                   🏠 Back to Home
                 </a>
@@ -866,44 +806,16 @@ export default function ImageToPdfPage() {
             ))}
           </section>
 
-          {/* ── Related Tools (8 cards) ── */}
-          <section aria-label="Related tools" style={{ marginBottom: "16px" }}>
-            <h2 style={{ fontSize: "15px", fontWeight: 800, marginBottom: "12px", color: "var(--text-secondary)" }}>
-              🔗 Related Tools
-            </h2>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: "10px" }}>
-              {[
-                { icon: "📐", title: "Image Resize",      href: "/image-resize",  desc: "Resize for SSC, Railway" },
-                { icon: "🪪", title: "Photo + Signature", href: "/photo-joiner",  desc: "Merge for govt forms"    },
-                { icon: "🎨", title: "Image Crop",        href: "/image-crop",    desc: "Crop to exact size"      },
-                { icon: "🗜️", title: "PDF Compress",      href: "/pdf-compress",  desc: "Shrink PDF file size"    },
-                { icon: "🔗", title: "PDF Merge",         href: "/pdf-merge",     desc: "Combine multiple PDFs"   },
-                { icon: "✂️", title: "PDF Split",         href: "/pdf-split",     desc: "Extract PDF pages"       },
-                { icon: "🔒", title: "PDF Protect",       href: "/pdf-protect",   desc: "Password protect PDF"    },
-                { icon: "⌨️", title: "Typing Test",       href: "/typing-test",   desc: "CPCT, SSC practice"           },
-              ].map((t) => (
-                <a key={t.href} href={t.href} className="tool-card" style={{ padding: "14px" }}>
-                  <div className="tool-card-icon" style={{ marginBottom: "8px" }}>{t.icon}</div>
-                  <div style={{ fontSize: "12.5px", fontWeight: 700, color: "var(--text-primary)", marginBottom: "3px" }}>{t.title}</div>
-                  <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{t.desc}</div>
-                </a>
-              ))}
-            </div>
-          </section>
+          <ToolWorkflowCTA
+            steps={[
+              { label: "Resize images", href: "/image-resize" },
+              { label: "Compress PDF", href: "/pdf-compress" },
+              { label: "Unlock PDF", href: "/pdf-unlock" },
+          { label: "Protect PDF", href: "/pdf-protect" },
+            ]}
+          />
 
-        </div>{/* /container-sm */}
-
-        {/* ── Bottom Ad ── */}
-        <div aria-hidden="true">
-          <ins className="adsbygoogle" style={{ display: "block", minHeight: "90px" }}
-            data-ad-format="auto" data-full-width-responsive="true" />
-        </div>
-
-        {/* ── FIX: Shared Footer component ── */}
-        <Footer />
-
-      </main>
-    </>
+    </ToolPageShell>
   );
 }
 

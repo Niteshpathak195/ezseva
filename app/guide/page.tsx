@@ -392,7 +392,7 @@ export default function GuidePage() {
               How to Use EzSeva Tools
             </h1>
             <p style={{ fontSize: "14.5px", color: "var(--text-muted)", maxWidth: "480px", margin: "0 auto 16px", lineHeight: 1.7 }}>
-              Step-by-step instructions, tips, and use cases for every tool — image, PDF, AI, and typing test.
+              Step-by-step instructions, tips, and use cases for every tool — image, PDF, and typing test.
             </p>
             <a
               href="/"
@@ -614,9 +614,9 @@ export default function GuidePage() {
           <ins className="adsbygoogle" style={{ display: "block", minHeight: "90px" }}
             data-ad-format="auto" data-full-width-responsive="true" />
         </div>
-
-        <Footer />
       </main>
+
+      <Footer />
 
       <style>{`
         @media (max-width: 640px) {
